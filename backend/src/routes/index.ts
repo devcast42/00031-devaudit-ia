@@ -1,6 +1,10 @@
 import { Router, Request, Response } from 'express';
+import authRoutes from './auth.routes';
 
 const router = Router();
+
+router.use('/auth', authRoutes);
+
 
 /**
  * @openapi

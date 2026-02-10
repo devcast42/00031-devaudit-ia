@@ -1,10 +1,133 @@
-import { Outlet } from "react-router-dom";
+import { Outlet, useLocation } from "react-router-dom";
 
 export function AuditFlowLayout() {
+    const location = useLocation();
+
+    const steps = [
+        { label: "Scope", path: "scope" },
+        { label: "Evidence", path: "evidence" },
+        { label: "Analysis", path: "analysis" },
+        { label: "Findings", path: "findings" },
+        { label: "Report", path: "report" },
+    ];
+
+    const currentStepIndex = steps.findIndex(step => location.pathname.includes(step.path));
+
     return (
-        <div>
-            <h1>Audit Flow</h1>
-            <Outlet />
+        <div style={{ minHeight: "100vh", backgroundColor: "#f9f9f9", display: "flex", flexDirection: "column" }}>
+            {/* Header */}
+            <header style={{
+                backgroundColor: "white",
+                padding: "12px 24px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                borderBottom: "1px solid #e0e0e0"
+            }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "24px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "12px", borderRight: "1px solid #eee", paddingRight: "24px" }}>
+                        <span style={{ fontSize: "24px", color: "#2196F3" }}>🛡️</span>
+                        <span style={{ fontWeight: "bold", fontSize: "16px", color: "#1a1a1a" }}>ISO/IEC 12207 Audit Tool</span>
+                    </div>
+                    <span style={{ fontSize: "14px", color: "#666" }}>Audit Execution</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "24px" }}>
+                    <span style={{ cursor: "pointer", fontSize: "20px", color: "#666" }}>❓</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                        <div style={{ textAlign: "right" }}>
+                            <div style={{ fontSize: "14px", fontWeight: "bold", color: "#1a1a1a" }}>Jane Auditor</div>
+                            <div style={{ fontSize: "12px", color: "#666" }}>Lead Assessor</div>
+                        </div>
+                        <div style={{
+                            width: "36px",
+                            height: "36px",
+                            borderRadius: "50%",
+                            backgroundColor: "#2196F3",
+                            color: "white",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontWeight: "bold",
+                            fontSize: "14px"
+                        }}>
+                            JA
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            {/* Stepper */}
+            <div style={{
+                padding: "40px 0",
+                backgroundColor: "white",
+                display: "flex",
+                justifyContent: "center",
+                borderBottom: "1px solid #e0e0e0"
+            }}>
+                <div style={{ display: "flex", alignItems: "center", width: "80%", maxWidth: "800px", justifyContent: "space-between", position: "relative" }}>
+                    {/* Progress Line */}
+                    <div style={{
+                        position: "absolute",
+                        top: "16px",
+                        left: "40px",
+                        right: "40px",
+                        height: "2px",
+                        backgroundColor: "#e0e0e0",
+                        zIndex: 0
+                    }} />
+                    <div style={{
+                        position: "absolute",
+                        top: "16px",
+                        left: "40px",
+                        width: `${(currentStepIndex / (steps.length - 1)) * (100 - (80 / 800 * 100))}%`, // Simplified calc
+                        height: "2px",
+                        backgroundColor: "#2196F3",
+                        zIndex: 0,
+                        transition: "width 0.3s ease"
+                    }} />
+
+                    {steps.map((step, index) => {
+                        const isActive = index === currentStepIndex;
+                        const isCompleted = index < currentStepIndex;
+
+                        return (
+                            <div key={step.label} style={{ display: "flex", flexDirection: "column", alignItems: "center", zIndex: 1, width: "80px" }}>
+                                <div style={{
+                                    width: "32px",
+                                    height: "32px",
+                                    borderRadius: "50%",
+                                    backgroundColor: isActive || isCompleted ? "#2196F3" : "white",
+                                    border: isCompleted || isActive ? "none" : "2px solid #e0e0e0",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    color: isActive || isCompleted ? "white" : "#999",
+                                    fontWeight: "bold",
+                                    fontSize: "14px",
+                                    marginBottom: "8px",
+                                    boxShadow: isActive ? "0 0 0 4px rgba(33, 150, 243, 0.2)" : "none"
+                                }}>
+                                    {isCompleted ? "✓" : index + 1}
+                                </div>
+                                <span style={{
+                                    fontSize: "12px",
+                                    fontWeight: isActive ? "bold" : "500",
+                                    color: isActive ? "#2196F3" : "#999"
+                                }}>
+                                    {step.label}
+                                </span>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+
+            {/* Content area */}
+            <main style={{ flex: 1, padding: "40px", display: "flex", justifyContent: "center" }}>
+                <div style={{ width: "100%", maxWidth: "900px" }}>
+                    <Outlet />
+                </div>
+            </main>
         </div>
     );
 }

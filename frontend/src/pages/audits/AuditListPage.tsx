@@ -1,4 +1,7 @@
+import { useNavigate } from "react-router-dom";
+
 export function AuditListPage() {
+    const navigate = useNavigate();
     const audits = [
         { id: 1, name: "Q3 Process Audit", org: "Acme Corp", standard: "ISO/IEC 12207", status: "In Progress", updated: "Today, 10:23 AM" },
         { id: 2, name: "Compliance Check 2023", org: "Globex Inc", standard: "ISO/IEC 12207", status: "Completed", updated: "Yesterday, 4:15 PM" },
@@ -17,16 +20,18 @@ export function AuditListPage() {
             }}>
                 <h1 style={{ fontSize: "28px", fontWeight: "bold", color: "#1a1a1a" }}>Audit Management</h1>
                 <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-                    <button style={{
-                        backgroundColor: "#2196F3",
-                        color: "white",
-                        border: "none",
-                        padding: "12px 24px",
-                        borderRadius: "8px",
-                        cursor: "pointer",
-                        fontWeight: "600",
-                        fontSize: "14px"
-                    }}>
+                    <button
+                        onClick={() => navigate("/audit/new/scope")}
+                        style={{
+                            backgroundColor: "#2196F3",
+                            color: "white",
+                            border: "none",
+                            padding: "12px 24px",
+                            borderRadius: "8px",
+                            cursor: "pointer",
+                            fontWeight: "600",
+                            fontSize: "14px"
+                        }}>
                         + New Audit
                     </button>
                 </div>
