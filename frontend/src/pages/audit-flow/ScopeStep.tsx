@@ -1,7 +1,67 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { AuditService, type CreateAuditDto } from "../../services/audit.service";
 
 export function ScopeStep() {
     const navigate = useNavigate();
+    const { id } = useParams<{ id: string }>();
+    const isEditMode = !!id && id !== "new";
+
+    const [formData, setFormData] = useState<CreateAuditDto>({
+        name: "Q3 Software Process Assessment",
+        organization: "TechFlow Solutions Inc.",
+        reviewPeriod: "Jan 01, 2024 - Mar 31, 2024",
+        complianceStandard: "ISO/IEC 12207:2017 - Software Life Cycle Processes"
+    });
+    const [isLoading, setIsLoading] = useState(false);
+
+    useEffect(() => {
+        if (isEditMode && id) {
+            setIsLoading(true);
+            AuditService.getAuditById(id)
+                .then(audit => {
+                    setFormData({
+                        name: audit.name,
+                        organization: audit.organization,
+                        reviewPeriod: audit.reviewPeriod,
+                        complianceStandard: audit.complianceStandard
+                    });
+                })
+                .catch(error => {
+                    console.error("Failed to fetch audit details:", error);
+                    alert("Failed to load audit details.");
+                })
+                .finally(() => setIsLoading(false));
+        }
+    }, [id, isEditMode]);
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({
+            ...prev,
+            [name]: value
+        }));
+    };
+
+    const handleSubmit = async () => {
+        try {
+            setIsLoading(true);
+            if (isEditMode && id) {
+                await AuditService.updateAudit(id, formData);
+                // If editing, we might want to stay here or go to next step. 
+                // Going to next step seems appropriate for "Continue".
+                navigate(`/audit/${id}/evidence`);
+            } else {
+                const newAudit = await AuditService.createAudit(formData);
+                navigate(`/audit/${newAudit.id}/evidence`);
+            }
+        } catch (error) {
+            console.error("Failed to save audit:", error);
+            alert("Failed to save audit. Please try again.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     return (
         <div style={{
@@ -12,7 +72,7 @@ export function ScopeStep() {
             width: "100%"
         }}>
             <h2 style={{ fontSize: "32px", fontWeight: "bold", marginBottom: "16px", color: "#1a1a1a" }}>
-                Scope Definition
+                {isEditMode ? "Edit Scope" : "Scope Definition"}
             </h2>
             <p style={{ color: "#666", fontSize: "16px", marginBottom: "40px", lineHeight: "1.5" }}>
                 Define the boundaries and reference standards for this audit session based on ISO/IEC 12207.
@@ -26,7 +86,9 @@ export function ScopeStep() {
                     </label>
                     <input
                         type="text"
-                        defaultValue="Q3 Software Process Assessment"
+                        name="name"
+                        value={formData.name}
+                        onChange={handleChange}
                         style={{
                             width: "100%",
                             padding: "12px 16px",
@@ -49,7 +111,9 @@ export function ScopeStep() {
                             <span style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#999" }}>🏢</span>
                             <input
                                 type="text"
-                                defaultValue="TechFlow Solutions Inc."
+                                name="organization"
+                                value={formData.organization}
+                                onChange={handleChange}
                                 style={{
                                     width: "100%",
                                     padding: "12px 16px 12px 40px",
@@ -70,7 +134,9 @@ export function ScopeStep() {
                             <span style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#999" }}>📅</span>
                             <input
                                 type="text"
-                                defaultValue="Jan 01, 2024 - Mar 31, 2024"
+                                name="reviewPeriod"
+                                value={formData.reviewPeriod}
+                                onChange={handleChange}
                                 style={{
                                     width: "100%",
                                     padding: "12px 16px 12px 40px",
@@ -92,16 +158,20 @@ export function ScopeStep() {
                     </label>
                     <div style={{ position: "relative" }}>
                         <span style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#999" }}>⚙️</span>
-                        <select style={{
-                            width: "100%",
-                            padding: "12px 40px 12px 40px",
-                            borderRadius: "8px",
-                            border: "1px solid #e0e0e0",
-                            fontSize: "16px",
-                            color: "#333",
-                            backgroundColor: "#fcfcfc",
-                            appearance: "none"
-                        }}>
+                        <select
+                            name="complianceStandard"
+                            value={formData.complianceStandard}
+                            onChange={handleChange}
+                            style={{
+                                width: "100%",
+                                padding: "12px 40px 12px 40px",
+                                borderRadius: "8px",
+                                border: "1px solid #e0e0e0",
+                                fontSize: "16px",
+                                color: "#333",
+                                backgroundColor: "#fcfcfc",
+                                appearance: "none"
+                            }}>
                             <option>ISO/IEC 12207:2017 - Software Life Cycle Processes</option>
                         </select>
                         <span style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", color: "#999" }}>⌄</span>
@@ -111,14 +181,15 @@ export function ScopeStep() {
                 {/* Action Button */}
                 <div style={{ marginTop: "24px", display: "flex", justifyContent: "flex-end" }}>
                     <button
-                        onClick={() => navigate("/audit/new/evidence")}
+                        onClick={handleSubmit}
+                        disabled={isLoading}
                         style={{
-                            backgroundColor: "#2196F3",
+                            backgroundColor: isLoading ? "#ccc" : "#2196F3",
                             color: "white",
                             border: "none",
                             padding: "12px 32px",
                             borderRadius: "8px",
-                            cursor: "pointer",
+                            cursor: isLoading ? "not-allowed" : "pointer",
                             fontWeight: "600",
                             fontSize: "16px",
                             display: "flex",
@@ -126,7 +197,7 @@ export function ScopeStep() {
                             gap: "8px"
                         }}
                     >
-                        Continue →
+                        {isLoading ? "Saving..." : (isEditMode ? "Save & Continue →" : "Create & Continue →")}
                     </button>
                 </div>
             </div>

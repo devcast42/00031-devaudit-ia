@@ -20,6 +20,9 @@ export class AuthController {
      *               code:
      *                 type: string
      *                 description: The authorization code from GitHub
+     *               redirect_uri:
+     *                 type: string
+     *                 description: The redirect URI used in the initial request
      *     responses:
      *       200:
      *         description: Returns the access token
@@ -36,7 +39,7 @@ export class AuthController {
      *         description: Internal server error
      */
     static async getGitHubToken(req: Request, res: Response): Promise<void> {
-        const { code } = req.body;
+        const { code, redirectUri } = req.body;
 
         if (!code) {
             res.status(400).json({ error: 'Authorization code is required' });
@@ -44,10 +47,50 @@ export class AuthController {
         }
 
         try {
-            const accessToken = await GitHubService.exchangeCodeForToken(code);
+            const accessToken = await GitHubService.exchangeCodeForToken(code, redirectUri);
             res.json({ access_token: accessToken });
         } catch (error: any) {
             res.status(400).json({ error: error.message || 'Failed to get GitHub token' });
+        }
+    }
+
+    /**
+     * Lists GitHub repositories for the authenticated user.
+     * @openapi
+     * /auth/github/repositories:
+     *   get:
+     *     tags:
+     *       - Authentication
+     *     description: Lists GitHub repositories for the authenticated user
+     *     parameters:
+     *       - in: header
+     *         name: Authorization
+     *         required: true
+     *         schema:
+     *           type: string
+     *         description: Bearer <access_token>
+     *     responses:
+     *       200:
+     *         description: Returns the list of repositories
+     *       401:
+     *         description: Unauthorized
+     *       500:
+     *         description: Internal server error
+     */
+    static async listRepositories(req: Request, res: Response): Promise<void> {
+        const authHeader = req.headers.authorization;
+        const token = authHeader?.split(' ')[1];
+
+        if (!token) {
+            res.status(401).json({ error: 'GitHub access token is required' });
+            return;
+        }
+
+        try {
+            const repositories = await GitHubService.getRepositories(token);
+            res.json(repositories);
+        } catch (error: any) {
+            res.status(500).json({ error: error.message || 'Failed to fetch repositories' });
         }
     }
 }

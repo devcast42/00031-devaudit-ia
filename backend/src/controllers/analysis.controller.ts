@@ -1,0 +1,205 @@
+import { Request, Response } from 'express';
+import { v4 as uuidv4 } from 'uuid';
+import { GitHubService } from '../services/github.service';
+import { MetricsService } from '../services/metrics.service';
+import { AnalysisService } from '../services/analysis.service';
+import { RepositoryMetrics } from '../models/repository-metrics.model';
+
+export class AnalysisController {
+    /**
+     * Collects metrics from GitHub for the selected repositories.
+     * This is called once from the Evidence step when the user clicks "Continue".
+     * @openapi
+     * /audits/{id}/collect-metrics:
+     *   post:
+     *     tags:
+     *       - Analysis
+     *     description: Collects repository metrics from GitHub for selected repos
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *         description: Audit ID
+     *       - in: header
+     *         name: Authorization
+     *         required: true
+     *         schema:
+     *           type: string
+     *         description: Bearer <github_access_token>
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             properties:
+     *               repositories:
+     *                 type: array
+     *                 items:
+     *                   type: object
+     *                   properties:
+     *                     id:
+     *                       type: number
+     *                     name:
+     *                       type: string
+     *                     full_name:
+     *                       type: string
+     *     responses:
+     *       200:
+     *         description: Metrics collected successfully
+     *       400:
+     *         description: Missing repositories or token
+     *       500:
+     *         description: Internal server error
+     */
+    static async collectMetrics(req: Request, res: Response): Promise<void> {
+        const auditId = req.params.id as string;
+        const authHeader = req.headers.authorization;
+        const token = authHeader?.split(' ')[1];
+        const { repositories } = req.body;
+
+        if (!token) {
+            res.status(401).json({ error: 'GitHub access token is required' });
+            return;
+        }
+
+        if (!repositories || !Array.isArray(repositories) || repositories.length === 0) {
+            res.status(400).json({ error: 'At least one repository is required' });
+            return;
+        }
+
+        try {
+            const allMetrics: RepositoryMetrics[] = [];
+
+            for (const repo of repositories) {
+                try {
+                    const rawMetrics = await GitHubService.collectRepositoryMetrics(token, repo.full_name);
+
+                    allMetrics.push({
+                        id: uuidv4(),
+                        audit_id: auditId,
+                        repo_id: repo.id,
+                        repo_name: repo.name,
+                        repo_full_name: repo.full_name,
+                        ...rawMetrics,
+                        collected_at: new Date().toISOString(),
+                    });
+                } catch (repoError: any) {
+                    console.error(`Failed to collect metrics for ${repo.full_name}:`, repoError.message);
+                    // Continue with other repos even if one fails
+                }
+            }
+
+            await MetricsService.saveMetrics(allMetrics);
+
+            res.json({
+                message: `Metrics collected for ${allMetrics.length} of ${repositories.length} repositories`,
+                metrics: allMetrics,
+            });
+        } catch (error: any) {
+            res.status(500).json({ error: error.message || 'Failed to collect metrics' });
+        }
+    }
+
+    /**
+     * Runs the audit analysis engine.
+     * @openapi
+     * /audits/{id}/analysis:
+     *   post:
+     *     tags:
+     *       - Analysis
+     *     description: Runs the audit analysis on previously collected metrics
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *         description: Audit ID
+     *     responses:
+     *       200:
+     *         description: Analysis completed successfully
+     *       400:
+     *         description: No metrics found for this audit
+     *       500:
+     *         description: Internal server error
+     */
+    static async runAnalysis(req: Request, res: Response): Promise<void> {
+        const auditId = req.params.id as string;
+
+        try {
+            const result = await AnalysisService.runAuditAnalysis(auditId);
+            res.json(result);
+        } catch (error: any) {
+            res.status(400).json({ error: error.message || 'Failed to run analysis' });
+        }
+    }
+
+    /**
+     * Gets saved analysis results for an audit.
+     * @openapi
+     * /audits/{id}/analysis:
+     *   get:
+     *     tags:
+     *       - Analysis
+     *     description: Gets saved analysis results for an audit
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *         description: Audit ID
+     *     responses:
+     *       200:
+     *         description: Returns the analysis results
+     *       404:
+     *         description: No analysis found for this audit
+     */
+    static async getAnalysis(req: Request, res: Response): Promise<void> {
+        const auditId = req.params.id as string;
+
+        try {
+            const result = await AnalysisService.getAnalysisByAuditId(auditId);
+            if (!result) {
+                res.status(404).json({ error: 'No analysis found for this audit. Run the analysis first.' });
+                return;
+            }
+            res.json(result);
+        } catch (error: any) {
+            res.status(500).json({ error: error.message || 'Failed to get analysis' });
+        }
+    }
+
+    /**
+     * Gets the stored metrics for an audit.
+     * @openapi
+     * /audits/{id}/metrics:
+     *   get:
+     *     tags:
+     *       - Analysis
+     *     description: Gets the stored repository metrics for an audit
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *         description: Audit ID
+     *     responses:
+     *       200:
+     *         description: Returns the repository metrics
+     */
+    static async getMetrics(req: Request, res: Response): Promise<void> {
+        const auditId = req.params.id as string;
+
+        try {
+            const metrics = await MetricsService.getMetricsByAuditId(auditId);
+            res.json(metrics);
+        } catch (error: any) {
+            res.status(500).json({ error: error.message || 'Failed to get metrics' });
+        }
+    }
+}

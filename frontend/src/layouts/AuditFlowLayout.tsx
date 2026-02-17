@@ -1,7 +1,11 @@
-import { Outlet, useLocation } from "react-router-dom";
+import { Outlet, useLocation, useNavigate, useParams } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { AuditService } from "../services/audit.service";
 
 export function AuditFlowLayout() {
+    const { id } = useParams<{ id: string }>();
     const location = useLocation();
+    const navigate = useNavigate();
 
     const steps = [
         { label: "Scope", path: "scope" },
@@ -12,6 +16,44 @@ export function AuditFlowLayout() {
     ];
 
     const currentStepIndex = steps.findIndex(step => location.pathname.includes(step.path));
+
+    // Track the furthest step reached to allow navigating forward to visited steps
+    const [maxStepReached, setMaxStepReached] = useState(currentStepIndex);
+    const [auditLoaded, setAuditLoaded] = useState(false);
+
+    // Fetch initial audit state
+    useEffect(() => {
+        if (id && id !== "new") {
+            AuditService.getAuditById(id).then(audit => {
+                const step = audit.currentStep || 0;
+                // Only set if backend has a further step than current (though usually they should match on load)
+                setMaxStepReached(prev => Math.max(prev, step));
+                setAuditLoaded(true);
+            }).catch(err => {
+                console.error("Failed to load audit", err);
+                // Handle error (e.g. redirect to list)
+            });
+        } else if (id === "new") {
+            setAuditLoaded(true);
+        }
+    }, [id]);
+
+    // Update local state and backend when advancing
+    useEffect(() => {
+        if (currentStepIndex > maxStepReached) {
+            setMaxStepReached(currentStepIndex);
+
+            // Persist to backend
+            if (id) {
+                AuditService.updateAudit(id, { currentStep: currentStepIndex })
+                    .catch(err => console.error("Failed to update audit progress", err));
+            }
+        }
+    }, [currentStepIndex, maxStepReached, id]);
+
+    if (!auditLoaded && id && id !== "new") {
+        return <div style={{ padding: "40px", textAlign: "center" }}>Loading audit...</div>;
+    }
 
     return (
         <div style={{ minHeight: "100vh", backgroundColor: "#f9f9f9", display: "flex", flexDirection: "column" }}>
@@ -89,19 +131,37 @@ export function AuditFlowLayout() {
                     {steps.map((step, index) => {
                         const isActive = index === currentStepIndex;
                         const isCompleted = index < currentStepIndex;
+                        const isLocked = index > maxStepReached;
+                        const isAvailable = index <= maxStepReached && !isActive; // Clickable if not active and not locked
 
                         return (
-                            <div key={step.label} style={{ display: "flex", flexDirection: "column", alignItems: "center", zIndex: 1, width: "80px" }}>
+                            <div
+                                key={step.label}
+                                onClick={() => isAvailable && navigate(step.path)}
+                                style={{
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    alignItems: "center",
+                                    zIndex: 1,
+                                    width: "80px",
+                                    cursor: isAvailable ? "pointer" : (isLocked ? "not-allowed" : "default"),
+                                    opacity: isLocked ? 0.6 : 1
+                                }}
+                            >
                                 <div style={{
                                     width: "32px",
                                     height: "32px",
                                     borderRadius: "50%",
                                     backgroundColor: isActive || isCompleted ? "#2196F3" : "white",
-                                    border: isCompleted || isActive ? "none" : "2px solid #e0e0e0",
+                                    border: isActive || isCompleted ? "none" : (
+                                        !isLocked ? "2px solid #2196F3" : "2px solid #e0e0e0"
+                                    ),
                                     display: "flex",
                                     alignItems: "center",
                                     justifyContent: "center",
-                                    color: isActive || isCompleted ? "white" : "#999",
+                                    color: isActive || isCompleted ? "white" : (
+                                        !isLocked ? "#2196F3" : "#999"
+                                    ),
                                     fontWeight: "bold",
                                     fontSize: "14px",
                                     marginBottom: "8px",
@@ -111,8 +171,8 @@ export function AuditFlowLayout() {
                                 </div>
                                 <span style={{
                                     fontSize: "12px",
-                                    fontWeight: isActive ? "bold" : "500",
-                                    color: isActive ? "#2196F3" : "#999"
+                                    fontWeight: isActive || isAvailable ? "bold" : "500",
+                                    color: isActive || isAvailable ? "#2196F3" : "#999"
                                 }}>
                                     {step.label}
                                 </span>
