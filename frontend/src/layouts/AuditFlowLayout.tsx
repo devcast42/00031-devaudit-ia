@@ -69,7 +69,7 @@ export function AuditFlowLayout() {
                 <div style={{ display: "flex", alignItems: "center", gap: "24px" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "12px", borderRight: "1px solid #eee", paddingRight: "24px" }}>
                         <span style={{ fontSize: "24px", color: "#2196F3" }}>🛡️</span>
-                        <span style={{ fontWeight: "bold", fontSize: "16px", color: "#1a1a1a" }}>ISO/IEC 12207 Audit Tool</span>
+                        <span style={{ fontWeight: "bold", fontSize: "16px", color: "#1a1a1a" }}>DevAudit IA</span>
                     </div>
                     <span style={{ fontSize: "14px", color: "#666" }}>Audit Execution</span>
                 </div>

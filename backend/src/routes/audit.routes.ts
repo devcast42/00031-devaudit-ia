@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { AuditController } from '../controllers/audit.controller';
 import { AnalysisController } from '../controllers/analysis.controller';
 import { FindingsController } from '../controllers/findings.controller';
+import { ReportController } from '../controllers/report.controller';
 
 const router = Router();
 
@@ -24,4 +25,10 @@ router.post('/:id/findings', FindingsController.createFinding);
 router.patch('/:id/findings/:findingId', FindingsController.updateFinding);
 router.delete('/:id/findings/:findingId', FindingsController.deleteFinding);
 
+// Report routes
+router.post('/:id/report/generate', ReportController.generateReport);
+router.get('/:id/report', ReportController.getReport);
+router.post('/:id/report/finalize', ReportController.finalizeAudit);
+
 export default router;
+
