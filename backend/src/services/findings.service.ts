@@ -25,7 +25,7 @@ export class FindingsService {
         const analysis = await AnalysisService.getAnalysisByAuditId(auditId);
 
         if (!analysis) {
-            throw new Error('No analysis found for this audit. Run the analysis first.');
+            throw new Error('No se encontró ningún análisis para esta auditoría. Ejecute el análisis primero.');
         }
 
         // Remove previous automatic findings for this audit (keep manual ones)

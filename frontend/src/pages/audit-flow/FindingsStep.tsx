@@ -137,9 +137,10 @@ export function FindingsStep() {
             low: { bg: "#E8F5E9", text: "#2E7D32" },
         };
         const c = colors[severity] || colors.low;
+        const labels: Record<string, string> = { high: "Alta", medium: "Media", low: "Baja" };
         return (
             <span style={{ padding: "4px 12px", borderRadius: "12px", fontSize: "12px", fontWeight: "600", backgroundColor: c.bg, color: c.text, textTransform: "uppercase" }}>
-                {severity}
+                {labels[severity] || severity}
             </span>
         );
     };
@@ -153,7 +154,7 @@ export function FindingsStep() {
                 color: isApproved ? "#2E7D32" : "#F57F17",
                 textTransform: "uppercase",
             }}>
-                {status}
+                {isApproved ? "Aprobado" : "Borrador"}
             </span>
         );
     };
@@ -179,14 +180,14 @@ export function FindingsStep() {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "8px" }}>
                 <div>
                     <div style={{ fontSize: "12px", fontWeight: "bold", color: "#2196F3", textTransform: "uppercase", marginBottom: "4px" }}>
-                        Step 4 of 5 • Findings
+                        Paso 4 de 5 • Hallazgos
                     </div>
                     <h2 style={{ fontSize: "28px", fontWeight: "bold", color: "#1a1a1a", margin: 0 }}>
-                        Audit Findings
+                        Hallazgos de Auditoría
                     </h2>
                 </div>
                 <div style={{ textAlign: "right" }}>
-                    <div style={{ fontSize: "14px", fontWeight: "bold", color: "#1a1a1a", marginBottom: "4px" }}>67% Completed</div>
+                    <div style={{ fontSize: "14px", fontWeight: "bold", color: "#1a1a1a", marginBottom: "4px" }}>67% Completado</div>
                     <div style={{ width: "200px", height: "6px", backgroundColor: "#e0e0e0", borderRadius: "3px" }}>
                         <div style={{ width: "67%", height: "100%", backgroundColor: "#2196F3", borderRadius: "3px" }} />
                     </div>
@@ -200,9 +201,9 @@ export function FindingsStep() {
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px", marginBottom: "24px" }}>
                     {[
                         { label: "Total", value: summary.total_findings, color: "#2196F3", bg: "#E3F2FD" },
-                        { label: "High", value: summary.high, color: "#C62828", bg: "#FFEBEE" },
-                        { label: "Medium", value: summary.medium, color: "#E65100", bg: "#FFF3E0" },
-                        { label: "Low", value: summary.low, color: "#2E7D32", bg: "#E8F5E9" },
+                        { label: "Alta", value: summary.high, color: "#C62828", bg: "#FFEBEE" },
+                        { label: "Media", value: summary.medium, color: "#E65100", bg: "#FFF3E0" },
+                        { label: "Baja", value: summary.low, color: "#2E7D32", bg: "#E8F5E9" },
                     ].map(card => (
                         <div key={card.label} style={{
                             backgroundColor: "white", borderRadius: "12px", border: "1px solid #e0e0e0",
@@ -226,7 +227,7 @@ export function FindingsStep() {
                         fontWeight: "600", fontSize: "14px",
                     }}
                 >
-                    {generating ? "⏳ Generating..." : "⚡ Generate from Analysis"}
+                    {generating ? "⏳ Generando..." : "⚡ Generar desde el Análisis"}
                 </button>
                 <button
                     onClick={openCreate}
@@ -236,7 +237,7 @@ export function FindingsStep() {
                         fontWeight: "600", fontSize: "14px",
                     }}
                 >
-                    ➕ Add Manual Finding
+                    ➕ Añadir Hallazgo Manual
                 </button>
             </div>
 
@@ -249,9 +250,9 @@ export function FindingsStep() {
                     padding: "60px", textAlign: "center", marginBottom: "24px",
                 }}>
                     <div style={{ fontSize: "48px", marginBottom: "16px" }}>📋</div>
-                    <h3 style={{ margin: "0 0 8px 0", color: "#333", fontSize: "20px" }}>No Findings Yet</h3>
+                    <h3 style={{ margin: "0 0 8px 0", color: "#333", fontSize: "20px" }}>Aún no hay hallazgos</h3>
                     <p style={{ margin: 0, fontSize: "14px", color: "#666" }}>
-                        Click "Generate from Analysis" to auto-create findings, or add them manually.
+                        Haga clic en "Generar desde el Análisis" para crear hallazgos automáticamente, o añádalos manualmente.
                     </p>
                 </div>
             ) : (
@@ -262,7 +263,7 @@ export function FindingsStep() {
                     <table style={{ width: "100%", borderCollapse: "collapse" }}>
                         <thead>
                             <tr style={{ borderBottom: "2px solid #e0e0e0", backgroundColor: "#fafafa" }}>
-                                {["Title", "Practice", "Severity", "Status", "Source", "Actions"].map(h => (
+                                {["Título", "Práctica", "Severidad", "Estado", "Fuente", "Acciones"].map(h => (
                                     <th key={h} style={{
                                         textAlign: "left", padding: "14px 16px", fontSize: "12px",
                                         fontWeight: "700", color: "#999", textTransform: "uppercase",
@@ -292,7 +293,7 @@ export function FindingsStep() {
                                             <button onClick={() => openEdit(f)} style={{
                                                 padding: "6px 12px", border: "1px solid #e0e0e0", borderRadius: "6px",
                                                 backgroundColor: "white", cursor: "pointer", fontSize: "12px", fontWeight: "500", color: "#333",
-                                            }}>✏️ Edit</button>
+                                            }}>✏️ Editar</button>
                                             <button onClick={() => setDeleteId(f.id)} style={{
                                                 padding: "6px 12px", border: "1px solid #FFCDD2", borderRadius: "6px",
                                                 backgroundColor: "#FFF5F5", cursor: "pointer", fontSize: "12px", fontWeight: "500", color: "#C62828",
@@ -314,17 +315,17 @@ export function FindingsStep() {
                 }}>
                     <div style={{ backgroundColor: "white", borderRadius: "12px", padding: "32px", maxWidth: "400px", width: "90%", textAlign: "center" }}>
                         <div style={{ fontSize: "36px", marginBottom: "12px" }}>⚠️</div>
-                        <h3 style={{ margin: "0 0 8px 0", color: "#1a1a1a" }}>Delete Finding?</h3>
-                        <p style={{ color: "#666", fontSize: "14px", margin: "0 0 24px 0" }}>This action cannot be undone.</p>
+                        <h3 style={{ margin: "0 0 8px 0", color: "#1a1a1a" }}>¿Eliminar Hallazgo?</h3>
+                        <p style={{ color: "#666", fontSize: "14px", margin: "0 0 24px 0" }}>Esta acción no se puede deshacer.</p>
                         <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
                             <button onClick={() => setDeleteId(null)} style={{
                                 padding: "10px 24px", border: "1px solid #e0e0e0", borderRadius: "8px",
                                 backgroundColor: "white", cursor: "pointer", fontWeight: "600", fontSize: "14px",
-                            }}>Cancel</button>
+                            }}>Cancelar</button>
                             <button onClick={() => handleDelete(deleteId)} style={{
                                 padding: "10px 24px", border: "none", borderRadius: "8px",
                                 backgroundColor: "#EF5350", color: "white", cursor: "pointer", fontWeight: "600", fontSize: "14px",
-                            }}>Delete</button>
+                            }}>Eliminar</button>
                         </div>
                     </div>
                 </div>
@@ -341,18 +342,18 @@ export function FindingsStep() {
                         maxWidth: "600px", width: "90%", maxHeight: "85vh", overflowY: "auto",
                     }}>
                         <h3 style={{ margin: "0 0 20px 0", color: "#1a1a1a", fontSize: "20px" }}>
-                            {editingId ? "Edit Finding" : "Create Manual Finding"}
+                            {editingId ? "Editar Hallazgo" : "Crear Hallazgo Manual"}
                         </h3>
 
                         <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                             {/* Practice Code */}
                             <div>
-                                <label style={labelStyle}>Practice Code</label>
+                                <label style={labelStyle}>Código de la Práctica</label>
                                 <input
                                     type="text"
                                     value={form.practice_code}
                                     onChange={e => setForm({ ...form, practice_code: e.target.value })}
-                                    placeholder="e.g., SCM, QA, PM"
+                                    placeholder="ej., SCM, QA, PM"
                                     style={inputStyle}
                                     disabled={!!editingId}
                                 />
@@ -360,23 +361,23 @@ export function FindingsStep() {
 
                             {/* Title */}
                             <div>
-                                <label style={labelStyle}>Title</label>
+                                <label style={labelStyle}>Título</label>
                                 <input
                                     type="text"
                                     value={form.title}
                                     onChange={e => setForm({ ...form, title: e.target.value })}
-                                    placeholder="Finding title"
+                                    placeholder="Título del hallazgo"
                                     style={inputStyle}
                                 />
                             </div>
 
                             {/* Description */}
                             <div>
-                                <label style={labelStyle}>Description</label>
+                                <label style={labelStyle}>Descripción</label>
                                 <textarea
                                     value={form.description}
                                     onChange={e => setForm({ ...form, description: e.target.value })}
-                                    placeholder="Detailed description of the finding"
+                                    placeholder="Descripción detallada del hallazgo"
                                     rows={3}
                                     style={{ ...inputStyle, resize: "vertical" }}
                                 />
@@ -384,40 +385,40 @@ export function FindingsStep() {
 
                             {/* Severity */}
                             <div>
-                                <label style={labelStyle}>Severity</label>
+                                <label style={labelStyle}>Severidad</label>
                                 <select
                                     value={form.severity}
                                     onChange={e => setForm({ ...form, severity: e.target.value as any })}
                                     style={inputStyle}
                                 >
-                                    <option value="high">High</option>
-                                    <option value="medium">Medium</option>
-                                    <option value="low">Low</option>
+                                    <option value="high">Alta</option>
+                                    <option value="medium">Media</option>
+                                    <option value="low">Baja</option>
                                 </select>
                             </div>
 
                             {/* Status (only on edit) */}
                             {editingId && (
                                 <div>
-                                    <label style={labelStyle}>Status</label>
+                                    <label style={labelStyle}>Estado</label>
                                     <select
                                         value={form.status}
                                         onChange={e => setForm({ ...form, status: e.target.value as any })}
                                         style={inputStyle}
                                     >
-                                        <option value="draft">Draft</option>
-                                        <option value="approved">Approved</option>
+                                        <option value="draft">Borrador</option>
+                                        <option value="approved">Aprobado</option>
                                     </select>
                                 </div>
                             )}
 
                             {/* Recommendation */}
                             <div>
-                                <label style={labelStyle}>Recommendation</label>
+                                <label style={labelStyle}>Recomendación</label>
                                 <textarea
                                     value={form.recommendation}
                                     onChange={e => setForm({ ...form, recommendation: e.target.value })}
-                                    placeholder="Recommended actions"
+                                    placeholder="Acciones recomendadas"
                                     rows={2}
                                     style={{ ...inputStyle, resize: "vertical" }}
                                 />
@@ -425,12 +426,12 @@ export function FindingsStep() {
 
                             {/* Evidence Reference */}
                             <div>
-                                <label style={labelStyle}>Evidence Reference (optional)</label>
+                                <label style={labelStyle}>Referencia de Evidencia (opcional)</label>
                                 <input
                                     type="text"
                                     value={form.evidence_reference}
                                     onChange={e => setForm({ ...form, evidence_reference: e.target.value })}
-                                    placeholder="e.g., metric source or reference"
+                                    placeholder="ej., fuente de métrica o referencia"
                                     style={inputStyle}
                                 />
                             </div>
@@ -440,11 +441,11 @@ export function FindingsStep() {
                             <button onClick={() => setShowModal(false)} style={{
                                 padding: "10px 24px", border: "1px solid #e0e0e0", borderRadius: "8px",
                                 backgroundColor: "white", cursor: "pointer", fontWeight: "600", fontSize: "14px",
-                            }}>Cancel</button>
+                            }}>Cancelar</button>
                             <button onClick={handleSave} style={{
                                 padding: "10px 24px", border: "none", borderRadius: "8px",
                                 backgroundColor: "#2196F3", color: "white", cursor: "pointer", fontWeight: "600", fontSize: "14px",
-                            }}>{editingId ? "Save Changes" : "Create Finding"}</button>
+                            }}>{editingId ? "Guardar Cambios" : "Crear Hallazgo"}</button>
                         </div>
                     </div>
                 </div>
@@ -459,7 +460,7 @@ export function FindingsStep() {
                     onClick={() => navigate(`/audit/${auditId}/analysis`)}
                     style={{ background: "none", border: "none", cursor: "pointer", color: "#666", fontSize: "14px", fontWeight: "600", display: "flex", alignItems: "center", gap: "8px" }}
                 >
-                    ← Back to Analysis
+                    ← Volver al Análisis
                 </button>
                 <button
                     onClick={() => navigate(`/audit/${auditId}/report`)}
@@ -471,7 +472,7 @@ export function FindingsStep() {
                         fontWeight: "600", fontSize: "14px", display: "flex", alignItems: "center", gap: "8px",
                     }}
                 >
-                    Continue to Report →
+                    Continuar al Informe →
                 </button>
             </div>
         </div>

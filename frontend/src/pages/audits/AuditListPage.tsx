@@ -37,13 +37,13 @@ export function AuditListPage() {
 
     const handleDelete = async (e: React.MouseEvent, id: string) => {
         e.stopPropagation();
-        if (confirm("Are you sure you want to delete this audit?")) {
+        if (confirm("¿Está seguro de que desea eliminar esta auditoría?")) {
             try {
                 await AuditService.deleteAudit(id);
                 setAudits(prev => prev.filter(a => a.id !== id));
             } catch (error) {
                 console.error("Failed to delete audit:", error);
-                alert("Failed to delete audit");
+                alert("Error al eliminar la auditoría");
             }
         }
     };
@@ -57,7 +57,7 @@ export function AuditListPage() {
                 alignItems: "center",
                 marginBottom: "40px"
             }}>
-                <h1 style={{ fontSize: "28px", fontWeight: "bold", color: "#1a1a1a" }}>Audit Management</h1>
+                <h1 style={{ fontSize: "28px", fontWeight: "bold", color: "#1a1a1a" }}>Gestión de Auditorías</h1>
                 <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
                     <button
                         onClick={() => navigate("/audit/new/scope")}
@@ -71,14 +71,14 @@ export function AuditListPage() {
                             fontWeight: "600",
                             fontSize: "14px"
                         }}>
-                        + New Audit
+                        + Nueva Auditoría
                     </button>
                 </div>
             </div>
 
             {/* Dashboard Overview */}
             <h2 style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "20px", color: "#1a1a1a" }}>
-                Dashboard Overview
+                Resumen del Panel
             </h2>
 
             {/* Stats Cards */}
@@ -95,7 +95,7 @@ export function AuditListPage() {
                     boxShadow: "0 1px 3px rgba(0,0,0,0.1)"
                 }}>
                     <div style={{ color: "#666", fontSize: "14px", marginBottom: "8px" }}>
-                        Pending Audits
+                        Auditorías Pendientes
                     </div>
                     <div style={{ fontSize: "36px", fontWeight: "bold", color: "#1a1a1a" }}>{audits.filter(a => a.status !== 'Completed').length}</div>
                 </div>
@@ -107,7 +107,7 @@ export function AuditListPage() {
                     boxShadow: "0 1px 3px rgba(0,0,0,0.1)"
                 }}>
                     <div style={{ color: "#666", fontSize: "14px", marginBottom: "8px" }}>
-                        Completed (YTD)
+                        Completadas (Año Actual)
                     </div>
                     <div style={{ fontSize: "36px", fontWeight: "bold", color: "#1a1a1a" }}>{audits.filter(a => a.status === 'Completed').length}</div>
                 </div>
@@ -119,7 +119,7 @@ export function AuditListPage() {
                     boxShadow: "0 1px 3px rgba(0,0,0,0.1)"
                 }}>
                     <div style={{ color: "#666", fontSize: "14px", marginBottom: "8px" }}>
-                        Total Audits
+                        Total de Auditorías
                     </div>
                     <div style={{ fontSize: "36px", fontWeight: "bold", color: "#1a1a1a" }}>{audits.length}</div>
                 </div>
@@ -133,7 +133,7 @@ export function AuditListPage() {
                     alignItems: "center",
                     marginBottom: "20px"
                 }}>
-                    <h3 style={{ fontSize: "20px", fontWeight: "bold", color: "#1a1a1a" }}>Recent Audits</h3>
+                    <h3 style={{ fontSize: "20px", fontWeight: "bold", color: "#1a1a1a" }}>Auditorías Recientes</h3>
                     <div style={{ display: "flex", gap: "12px" }}>
                         <button style={{
                             padding: "8px 16px",
@@ -144,7 +144,7 @@ export function AuditListPage() {
                             color: "#333",
                             fontWeight: "500"
                         }}>
-                            🔍 Filter
+                            🔍 Filtrar
                         </button>
                         <button style={{
                             padding: "8px 16px",
@@ -155,37 +155,37 @@ export function AuditListPage() {
                             color: "#333",
                             fontWeight: "500"
                         }}>
-                            📥 Export
+                            📥 Exportar
                         </button>
                     </div>
                 </div>
 
                 {/* Table */}
                 {loading ? (
-                    <div style={{ padding: "40px", textAlign: "center", color: "#666" }}>Loading audits...</div>
+                    <div style={{ padding: "40px", textAlign: "center", color: "#666" }}>Cargando auditorías...</div>
                 ) : audits.length === 0 ? (
-                    <div style={{ padding: "40px", textAlign: "center", color: "#666" }}>No audits found. Create one to get started.</div>
+                    <div style={{ padding: "40px", textAlign: "center", color: "#666" }}>No se encontraron auditorías. Cree una para comenzar.</div>
                 ) : (
                     <table style={{ width: "100%", borderCollapse: "collapse" }}>
                         <thead>
                             <tr style={{ borderBottom: "2px solid #f0f0f0" }}>
                                 <th style={{ textAlign: "left", padding: "12px", color: "#666", fontWeight: "600" }}>
-                                    Audit Name
+                                    Nombre de la Auditoría
                                 </th>
                                 <th style={{ textAlign: "left", padding: "12px", color: "#666", fontWeight: "600" }}>
-                                    Organization
+                                    Organización
                                 </th>
                                 <th style={{ textAlign: "left", padding: "12px", color: "#666", fontWeight: "600" }}>
-                                    Standard
+                                    Estándar
                                 </th>
                                 <th style={{ textAlign: "left", padding: "12px", color: "#666", fontWeight: "600" }}>
-                                    Status
+                                    Estado
                                 </th>
                                 <th style={{ textAlign: "left", padding: "12px", color: "#666", fontWeight: "600" }}>
-                                    Last Updated
+                                    Última Actualización
                                 </th>
                                 <th style={{ textAlign: "left", padding: "12px", color: "#666", fontWeight: "600" }}>
-                                    Actions
+                                    Acciones
                                 </th>
                             </tr>
                         </thead>
@@ -209,9 +209,10 @@ export function AuditListPage() {
                                             backgroundColor: audit.status === "Completed" ? "#e8f5e9" :
                                                 audit.status === "In Progress" ? "#e3f2fd" : "#f5f5f5",
                                             color: audit.status === "Completed" ? "#2e7d32" :
-                                                audit.status === "In Progress" ? "#1976d2" : "#666"
+                                                status === "In Progress" ? "#1976d2" : "#666"
                                         }}>
-                                            {audit.status}
+                                            {audit.status === "Completed" ? "Completada" :
+                                                status === "In Progress" ? "En Progreso" : audit.status}
                                         </span>
                                     </td>
                                     <td style={{ padding: "16px", color: "#666" }}>{formatDate(audit.updatedAt)}</td>
@@ -234,7 +235,7 @@ export function AuditListPage() {
                                                 }}
                                                 title="Continue Audit"
                                             >
-                                                ▶ Continue
+                                                ▶ Continuar
                                             </button>
                                             <button
                                                 onClick={(e) => handleDelete(e, audit.id)}
@@ -268,7 +269,7 @@ export function AuditListPage() {
                     color: "#666",
                     fontSize: "14px"
                 }}>
-                    <div>Showing {audits.length} results</div>
+                    <div>Mostrando {audits.length} resultados</div>
                     <div style={{ display: "flex", gap: "8px" }}>
                         <button style={{
                             padding: "8px 16px",
@@ -279,7 +280,7 @@ export function AuditListPage() {
                             color: "#333",
                             fontWeight: "500"
                         }}>
-                            Previous
+                            Anterior
                         </button>
                         <button style={{
                             padding: "8px 16px",
@@ -290,7 +291,7 @@ export function AuditListPage() {
                             color: "#333",
                             fontWeight: "500"
                         }}>
-                            Next
+                            Siguiente
                         </button>
                     </div>
                 </div>

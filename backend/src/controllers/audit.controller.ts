@@ -70,7 +70,7 @@ export class AuditController {
             if (audit) {
                 res.json(audit);
             } else {
-                res.status(404).json({ error: 'Audit not found' });
+                res.status(404).json({ error: 'Auditoría no encontrada' });
             }
         } catch (error: any) {
             res.status(500).json({ error: error.message });
@@ -83,7 +83,7 @@ export class AuditController {
             if (audit) {
                 res.json(audit);
             } else {
-                res.status(404).json({ error: 'Audit not found' });
+                res.status(404).json({ error: 'Auditoría no encontrada' });
             }
         } catch (error: any) {
             res.status(500).json({ error: error.message });
@@ -96,7 +96,7 @@ export class AuditController {
             if (success) {
                 res.status(204).send();
             } else {
-                res.status(404).json({ error: 'Audit not found' });
+                res.status(404).json({ error: 'Auditoría no encontrada' });
             }
         } catch (error: any) {
             res.status(500).json({ error: error.message });

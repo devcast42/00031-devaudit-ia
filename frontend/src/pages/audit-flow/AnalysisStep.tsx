@@ -62,13 +62,13 @@ export function AnalysisStep() {
     const maturityLabel = (level: number) => {
         switch (level) {
             case 1:
-                return "Initial";
+                return "Inicial";
             case 2:
-                return "Managed";
+                return "Gestionado";
             case 3:
-                return "Defined";
+                return "Definido";
             default:
-                return "Unknown";
+                return "Desconocido";
         }
     };
 
@@ -130,7 +130,7 @@ export function AnalysisStep() {
                             marginBottom: "4px",
                         }}
                     >
-                        Step 3 of 5 • Analysis
+                        Paso 3 de 5 • Análisis
                     </div>
                     <h2
                         style={{
@@ -140,7 +140,7 @@ export function AnalysisStep() {
                             margin: 0,
                         }}
                     >
-                        Audit Analysis
+                        Análisis de Auditoría
                     </h2>
                 </div>
                 <div style={{ textAlign: "right" }}>
@@ -152,7 +152,7 @@ export function AnalysisStep() {
                             marginBottom: "4px",
                         }}
                     >
-                        50% Completed
+                        50% Completado
                     </div>
                     <div
                         style={{
@@ -204,7 +204,7 @@ export function AnalysisStep() {
                             fontSize: "20px",
                         }}
                     >
-                        Ready to Analyze
+                        Listo para Analizar
                     </h3>
                     <p
                         style={{
@@ -216,9 +216,7 @@ export function AnalysisStep() {
                             marginRight: "auto",
                         }}
                     >
-                        The analysis engine will evaluate your repository metrics
-                        against established software development practices and
-                        calculate maturity levels.
+                        El motor de análisis evaluará sus métricas de repositorio contra las prácticas de desarrollo de software establecidas y calculará los niveles de madurez.
                     </p>
                     <button
                         onClick={handleRunAnalysis}
@@ -238,8 +236,8 @@ export function AnalysisStep() {
                         }}
                     >
                         {isRunning
-                            ? "⏳ Running Analysis..."
-                            : "▶ Run Analysis"}
+                            ? "⏳ Ejecutando Análisis..."
+                            : "▶ Ejecutar Análisis"}
                     </button>
                     {error && (
                         <p
@@ -311,7 +309,7 @@ export function AnalysisStep() {
                                     marginBottom: "4px",
                                 }}
                             >
-                                Global Maturity Level
+                                Nivel de Madurez Global
                             </div>
                             <div
                                 style={{
@@ -320,7 +318,7 @@ export function AnalysisStep() {
                                     color: "#1a1a1a",
                                 }}
                             >
-                                Level {result.global_maturity_level} —{" "}
+                                Nivel {result.global_maturity_level} —{" "}
                                 {maturityLabel(result.global_maturity_level)}
                             </div>
                             <div
@@ -330,9 +328,7 @@ export function AnalysisStep() {
                                     marginTop: "4px",
                                 }}
                             >
-                                Based on {result.practices.length} practices
-                                evaluated • {result.findings.length} findings
-                                generated
+                                Basado en {result.practices.length} prácticas evaluadas • {result.findings.length} hallazgos generados
                             </div>
                         </div>
                         <div style={{ marginLeft: "auto" }}>
@@ -350,7 +346,7 @@ export function AnalysisStep() {
                                     color: "#333",
                                 }}
                             >
-                                {isRunning ? "Re-running..." : "🔄 Re-run"}
+                                {isRunning ? "Re-ejecutando..." : "🔄 Re-analizar"}
                             </button>
                         </div>
                     </div>
@@ -434,7 +430,7 @@ export function AnalysisStep() {
                                             fontWeight: "700",
                                         }}
                                     >
-                                        Level{" "}
+                                        Nivel{" "}
                                         {practice.maturity_level}
                                     </div>
                                 </div>
@@ -450,7 +446,7 @@ export function AnalysisStep() {
                                             marginBottom: "6px",
                                         }}
                                     >
-                                        <span>Score</span>
+                                        <span>Puntaje</span>
                                         <span>
                                             {practice.score} /{" "}
                                             {practice.max_score}
@@ -468,7 +464,7 @@ export function AnalysisStep() {
                                             style={{
                                                 height: "100%",
                                                 width: `${(practice.score /
-                                                        practice.max_score) *
+                                                    practice.max_score) *
                                                     100
                                                     }%`,
                                                 backgroundColor: maturityColor(
@@ -521,7 +517,7 @@ export function AnalysisStep() {
                                         color: "#1a1a1a",
                                     }}
                                 >
-                                    📋 Findings ({result.findings.length})
+                                    📋 Hallazgos ({result.findings.length})
                                 </h3>
                             </div>
                             <table
@@ -546,7 +542,7 @@ export function AnalysisStep() {
                                                 textTransform: "uppercase",
                                             }}
                                         >
-                                            Practice
+                                            Práctica
                                         </th>
                                         <th
                                             style={{
@@ -558,7 +554,7 @@ export function AnalysisStep() {
                                                 textTransform: "uppercase",
                                             }}
                                         >
-                                            Severity
+                                            Severidad
                                         </th>
                                         <th
                                             style={{
@@ -570,7 +566,7 @@ export function AnalysisStep() {
                                                 textTransform: "uppercase",
                                             }}
                                         >
-                                            Description
+                                            Descripción
                                         </th>
                                     </tr>
                                 </thead>
@@ -644,7 +640,7 @@ export function AnalysisStep() {
                         gap: "8px",
                     }}
                 >
-                    ← Back to Evidence
+                    ← Volver a Evidencia
                 </button>
                 <button
                     onClick={() => navigate(`/audit/${auditId}/findings`)}
@@ -663,7 +659,7 @@ export function AnalysisStep() {
                         gap: "8px",
                     }}
                 >
-                    Continue to Findings →
+                    Continuar a Hallazgos →
                 </button>
             </div>
         </div>

@@ -8,11 +8,11 @@ export function AuditFlowLayout() {
     const navigate = useNavigate();
 
     const steps = [
-        { label: "Scope", path: "scope" },
-        { label: "Evidence", path: "evidence" },
-        { label: "Analysis", path: "analysis" },
-        { label: "Findings", path: "findings" },
-        { label: "Report", path: "report" },
+        { label: "Alcance", path: "scope" },
+        { label: "Evidencia", path: "evidence" },
+        { label: "Análisis", path: "analysis" },
+        { label: "Hallazgos", path: "findings" },
+        { label: "Informe", path: "report" },
     ];
 
     const currentStepIndex = steps.findIndex(step => location.pathname.includes(step.path));
@@ -52,7 +52,7 @@ export function AuditFlowLayout() {
     }, [currentStepIndex, maxStepReached, id]);
 
     if (!auditLoaded && id && id !== "new") {
-        return <div style={{ padding: "40px", textAlign: "center" }}>Loading audit...</div>;
+        return <div style={{ padding: "40px", textAlign: "center" }}>Cargando auditoría...</div>;
     }
 
     return (
@@ -67,18 +67,20 @@ export function AuditFlowLayout() {
                 borderBottom: "1px solid #e0e0e0"
             }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "24px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "12px", borderRight: "1px solid #eee", paddingRight: "24px" }}>
-                        <span style={{ fontSize: "24px", color: "#2196F3" }}>🛡️</span>
+                    <div
+                        onClick={() => navigate("/")}
+                        style={{ display: "flex", alignItems: "center", gap: "12px", borderRight: "1px solid #eee", paddingRight: "24px", cursor: "pointer" }}
+                    >
                         <span style={{ fontWeight: "bold", fontSize: "16px", color: "#1a1a1a" }}>DevAudit IA</span>
                     </div>
-                    <span style={{ fontSize: "14px", color: "#666" }}>Audit Execution</span>
+                    <span style={{ fontSize: "14px", color: "#666" }}>Ejecución de Auditoría</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "24px" }}>
                     <span style={{ cursor: "pointer", fontSize: "20px", color: "#666" }}>❓</span>
                     <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                         <div style={{ textAlign: "right" }}>
                             <div style={{ fontSize: "14px", fontWeight: "bold", color: "#1a1a1a" }}>Jane Auditor</div>
-                            <div style={{ fontSize: "12px", color: "#666" }}>Lead Assessor</div>
+                            <div style={{ fontSize: "12px", color: "#666" }}>Evaluador Principal</div>
                         </div>
                         <div style={{
                             width: "36px",

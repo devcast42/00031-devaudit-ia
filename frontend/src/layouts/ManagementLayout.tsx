@@ -16,7 +16,7 @@ export function ManagementLayout() {
                 overflowY: "auto"
             }}>
                 <h1 style={{ fontSize: "20px", fontWeight: "bold", marginBottom: "40px", color: "#1a1a1a" }}>
-                    RepoAudit
+                    DevAudit IA
                 </h1>
 
                 <nav>
@@ -29,7 +29,7 @@ export function ManagementLayout() {
                         color: "#1976d2",
                         fontWeight: "500"
                     }}>
-                        📋 Audits
+                        📋 Auditorías
                     </div>
                     <div style={{
                         padding: "12px 16px",
@@ -39,7 +39,7 @@ export function ManagementLayout() {
                         color: "#333",
                         fontWeight: "500"
                     }}>
-                        📊 Reports
+                        📊 Informes
                     </div>
                     <div style={{
                         padding: "12px 16px",
@@ -48,7 +48,7 @@ export function ManagementLayout() {
                         color: "#333",
                         fontWeight: "500"
                     }}>
-                        ⚙️ Settings
+                        ⚙️ Configuración
                     </div>
                 </nav>
 
@@ -77,7 +77,7 @@ export function ManagementLayout() {
                     </div>
                     <div>
                         <div style={{ fontWeight: "600", fontSize: "14px", color: "#1a1a1a" }}>John Doe</div>
-                        <div style={{ fontSize: "12px", color: "#666" }}>Lead Auditor</div>
+                        <div style={{ fontSize: "12px", color: "#666" }}>Auditor Principal</div>
                     </div>
                 </div>
             </aside>

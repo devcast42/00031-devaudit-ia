@@ -61,12 +61,12 @@ export class AnalysisController {
         const { repositories } = req.body;
 
         if (!token) {
-            res.status(401).json({ error: 'GitHub access token is required' });
+            res.status(401).json({ error: 'Se requiere el token de acceso de GitHub' });
             return;
         }
 
         if (!repositories || !Array.isArray(repositories) || repositories.length === 0) {
-            res.status(400).json({ error: 'At least one repository is required' });
+            res.status(400).json({ error: 'Se requiere al menos un repositorio' });
             return;
         }
 
@@ -95,11 +95,11 @@ export class AnalysisController {
             await MetricsService.saveMetrics(allMetrics);
 
             res.json({
-                message: `Metrics collected for ${allMetrics.length} of ${repositories.length} repositories`,
+                message: `Métricas recolectadas para ${allMetrics.length} de ${repositories.length} repositorios`,
                 metrics: allMetrics,
             });
         } catch (error: any) {
-            res.status(500).json({ error: error.message || 'Failed to collect metrics' });
+            res.status(500).json({ error: error.message || 'Error al recolectar métricas' });
         }
     }
 
@@ -133,7 +133,7 @@ export class AnalysisController {
             const result = await AnalysisService.runAuditAnalysis(auditId);
             res.json(result);
         } catch (error: any) {
-            res.status(400).json({ error: error.message || 'Failed to run analysis' });
+            res.status(400).json({ error: error.message || 'Error al ejecutar el análisis' });
         }
     }
 
@@ -164,12 +164,12 @@ export class AnalysisController {
         try {
             const result = await AnalysisService.getAnalysisByAuditId(auditId);
             if (!result) {
-                res.status(404).json({ error: 'No analysis found for this audit. Run the analysis first.' });
+                res.status(404).json({ error: 'No se encontró ningún análisis para esta auditoría. Ejecute el análisis primero.' });
                 return;
             }
             res.json(result);
         } catch (error: any) {
-            res.status(500).json({ error: error.message || 'Failed to get analysis' });
+            res.status(500).json({ error: error.message || 'Error al obtener el análisis' });
         }
     }
 
@@ -199,7 +199,7 @@ export class AnalysisController {
             const metrics = await MetricsService.getMetricsByAuditId(auditId);
             res.json(metrics);
         } catch (error: any) {
-            res.status(500).json({ error: error.message || 'Failed to get metrics' });
+            res.status(500).json({ error: error.message || 'Error al obtener las métricas' });
         }
     }
 }

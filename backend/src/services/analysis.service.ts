@@ -16,7 +16,7 @@ export class AnalysisService {
         const metrics = await MetricsService.getMetricsByAuditId(auditId);
 
         if (metrics.length === 0) {
-            throw new Error('No metrics found for this audit. Please collect evidence first.');
+            throw new Error('No se encontraron métricas para esta auditoría. Por favor, recolecte la evidencia primero.');
         }
 
         // 2. Aggregate metrics across all repositories

@@ -71,18 +71,32 @@ export function ScopeStep() {
             boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
             width: "100%"
         }}>
-            <h2 style={{ fontSize: "32px", fontWeight: "bold", marginBottom: "16px", color: "#1a1a1a" }}>
-                {isEditMode ? "Edit Scope" : "Scope Definition"}
-            </h2>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "8px" }}>
+                <div>
+                    <div style={{ fontSize: "12px", fontWeight: "bold", color: "#2196F3", textTransform: "uppercase", marginBottom: "4px" }}>
+                        Paso 1 de 5 • Definición del Alcance
+                    </div>
+                    <h2 style={{ fontSize: "28px", fontWeight: "bold", color: "#1a1a1a", margin: 0 }}>
+                        Información y Alcance de la Auditoría
+                    </h2>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                    <div style={{ fontSize: "14px", fontWeight: "bold", color: "#1a1a1a", marginBottom: "4px" }}>16% Completado</div>
+                    <div style={{ width: "200px", height: "6px", backgroundColor: "#e0e0e0", borderRadius: "3px" }}>
+                        <div style={{ width: "16%", height: "100%", backgroundColor: "#2196F3", borderRadius: "3px" }} />
+                    </div>
+                </div>
+            </div>
+
             <p style={{ color: "#666", fontSize: "16px", marginBottom: "40px", lineHeight: "1.5" }}>
-                Define the boundaries and reference standards for this audit session based on ISO/IEC 12207.
+                Defina los límites y estándares de referencia para esta sesión de auditoría.
             </p>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
                 {/* Audit Name */}
                 <div>
                     <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#333", marginBottom: "8px", textTransform: "uppercase" }}>
-                        Audit Name
+                        Nombre de la Auditoría
                     </label>
                     <input
                         type="text"
@@ -105,7 +119,7 @@ export function ScopeStep() {
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
                     <div>
                         <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#333", marginBottom: "8px", textTransform: "uppercase" }}>
-                            Organization
+                            Organización
                         </label>
                         <div style={{ position: "relative" }}>
                             <span style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#999" }}>🏢</span>
@@ -128,7 +142,7 @@ export function ScopeStep() {
                     </div>
                     <div>
                         <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#333", marginBottom: "8px", textTransform: "uppercase" }}>
-                            Review Period
+                            Período de Revisión
                         </label>
                         <div style={{ position: "relative" }}>
                             <span style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#999" }}>📅</span>
@@ -154,7 +168,7 @@ export function ScopeStep() {
                 {/* Compliance Standard */}
                 <div>
                     <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#333", marginBottom: "8px", textTransform: "uppercase" }}>
-                        Compliance Standard
+                        Estándar de Cumplimiento
                     </label>
                     <div style={{ position: "relative" }}>
                         <span style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#999" }}>⚙️</span>
@@ -172,7 +186,9 @@ export function ScopeStep() {
                                 backgroundColor: "#fcfcfc",
                                 appearance: "none"
                             }}>
-                            <option>ISO/IEC 12207:2017 - Software Life Cycle Processes</option>
+                            <option>Estándar Interno DevAudit v1.0</option>
+                            <option>ISO/IEC 25010 (Calidad de Software)</option>
+                            <option>OWASP Top 10 (Seguridad)</option>
                         </select>
                         <span style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", color: "#999" }}>⌄</span>
                     </div>
@@ -184,20 +200,15 @@ export function ScopeStep() {
                         onClick={handleSubmit}
                         disabled={isLoading}
                         style={{
-                            backgroundColor: isLoading ? "#ccc" : "#2196F3",
-                            color: "white",
-                            border: "none",
-                            padding: "12px 32px",
-                            borderRadius: "8px",
-                            cursor: isLoading ? "not-allowed" : "pointer",
-                            fontWeight: "600",
-                            fontSize: "16px",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "8px"
+                            padding: "12px 32px", borderRadius: "8px", border: "none",
+                            backgroundColor: "#1a1a1a", color: "white",
+                            fontSize: "14px", fontWeight: "600",
+                            cursor: "pointer",
+                            display: "flex", alignItems: "center", gap: "8px",
+                            boxShadow: "0 4px 12px rgba(0,0,0,0.1)"
                         }}
                     >
-                        {isLoading ? "Saving..." : (isEditMode ? "Save & Continue →" : "Create & Continue →")}
+                        {isLoading ? "Guardando..." : (isEditMode ? "Guardar y Continuar →" : "Crear y Continuar →")}
                     </button>
                 </div>
             </div>

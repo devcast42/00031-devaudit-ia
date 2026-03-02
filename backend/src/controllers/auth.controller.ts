@@ -42,7 +42,7 @@ export class AuthController {
         const { code, redirectUri } = req.body;
 
         if (!code) {
-            res.status(400).json({ error: 'Authorization code is required' });
+            res.status(400).json({ error: 'Se requiere el código de autorización' });
             return;
         }
 
@@ -50,7 +50,7 @@ export class AuthController {
             const accessToken = await GitHubService.exchangeCodeForToken(code, redirectUri);
             res.json({ access_token: accessToken });
         } catch (error: any) {
-            res.status(400).json({ error: error.message || 'Failed to get GitHub token' });
+            res.status(400).json({ error: error.message || 'Error al obtener el token de GitHub' });
         }
     }
 
@@ -82,7 +82,7 @@ export class AuthController {
         const token = authHeader?.split(' ')[1];
 
         if (!token) {
-            res.status(401).json({ error: 'GitHub access token is required' });
+            res.status(401).json({ error: 'Se requiere el token de acceso de GitHub' });
             return;
         }
 
@@ -90,7 +90,7 @@ export class AuthController {
             const repositories = await GitHubService.getRepositories(token);
             res.json(repositories);
         } catch (error: any) {
-            res.status(500).json({ error: error.message || 'Failed to fetch repositories' });
+            res.status(500).json({ error: error.message || 'Error al obtener los repositorios' });
         }
     }
 }

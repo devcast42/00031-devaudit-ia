@@ -17,13 +17,13 @@ export class ReportService {
         // 1. Get audit info
         const audit = await AuditService.getAuditById(auditId);
         if (!audit) {
-            throw new Error('Audit not found.');
+            throw new Error('Auditoría no encontrada.');
         }
 
         // 2. Check if already finalized
         const existing = this.reports.find(r => r.audit_id === auditId);
         if (existing && existing.status === 'finalized') {
-            throw new Error('This audit has been finalized. No modifications are allowed.');
+            throw new Error('Esta auditoría ha sido finalizada. No se permiten modificaciones.');
         }
 
         // 3. Get repository info from metrics
@@ -36,7 +36,7 @@ export class ReportService {
         // 4. Get analysis results
         const analysis = await AnalysisService.getAnalysisByAuditId(auditId);
         if (!analysis) {
-            throw new Error('No analysis found. Please run the analysis step first.');
+            throw new Error('No se encontró ningún análisis. Por favor, ejecute el paso de análisis primero.');
         }
 
         // 5. Get ONLY approved findings
@@ -46,10 +46,10 @@ export class ReportService {
         // 6. Build maturity summary
         const maturityLabel = (level: number) => {
             switch (level) {
-                case 1: return 'Initial';
-                case 2: return 'Managed';
-                case 3: return 'Defined';
-                default: return 'Unknown';
+                case 1: return 'Inicial';
+                case 2: return 'Gestionado';
+                case 3: return 'Definido';
+                default: return 'Desconocido';
             }
         };
 
@@ -125,20 +125,20 @@ export class ReportService {
         // 1. Validate audit exists
         const audit = await AuditService.getAuditById(auditId);
         if (!audit) {
-            throw new Error('Audit not found.');
+            throw new Error('Auditoría no encontrada.');
         }
 
         // 2. Check not already finalized
         const report = this.reports.find(r => r.audit_id === auditId);
         if (report && report.status === 'finalized') {
-            throw new Error('This audit has already been finalized.');
+            throw new Error('Esta auditoría ya ha sido finalizada.');
         }
 
         // 3. Validate approved findings exist
         const findingsSummary = await FindingsService.getByAuditId(auditId);
         const approvedFindings = findingsSummary.findings.filter(f => f.status === 'approved');
         if (approvedFindings.length === 0) {
-            throw new Error('Cannot finalize: no approved findings. Please approve at least one finding.');
+            throw new Error('No se puede finalizar: no hay hallazgos aprobados. Por favor, apruebe al menos un hallazgo.');
         }
 
         // 4. Generate or refresh the report

@@ -29,7 +29,7 @@ export class ReportController {
             const reportData = await ReportService.generateAuditReport(auditId);
             res.json(reportData);
         } catch (error: any) {
-            res.status(400).json({ error: error.message || 'Failed to generate report' });
+            res.status(400).json({ error: error.message || 'Error al generar el informe' });
         }
     }
 
@@ -59,12 +59,12 @@ export class ReportController {
         try {
             const reportData = await ReportService.getReport(auditId);
             if (!reportData) {
-                res.status(404).json({ error: 'No report found. Generate the report first.' });
+                res.status(404).json({ error: 'No se encontró ningún informe. Genere el informe primero.' });
                 return;
             }
             res.json(reportData);
         } catch (error: any) {
-            res.status(500).json({ error: error.message || 'Failed to get report' });
+            res.status(500).json({ error: error.message || 'Error al obtener el informe' });
         }
     }
 
@@ -95,7 +95,7 @@ export class ReportController {
             const reportData = await ReportService.finalizeAudit(auditId);
             res.json(reportData);
         } catch (error: any) {
-            res.status(400).json({ error: error.message || 'Failed to finalize audit' });
+            res.status(400).json({ error: error.message || 'Error al finalizar la auditoría' });
         }
     }
 }

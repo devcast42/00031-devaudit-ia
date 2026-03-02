@@ -30,7 +30,7 @@ export class FindingsController {
             const summary = await FindingsService.generateFindingsFromAnalysis(auditId);
             res.json(summary);
         } catch (error: any) {
-            res.status(400).json({ error: error.message || 'Failed to generate findings' });
+            res.status(400).json({ error: error.message || 'Error al generar los hallazgos' });
         }
     }
 
@@ -59,7 +59,7 @@ export class FindingsController {
             const summary = await FindingsService.getByAuditId(auditId);
             res.json(summary);
         } catch (error: any) {
-            res.status(500).json({ error: error.message || 'Failed to get findings' });
+            res.status(500).json({ error: error.message || 'Error al obtener los hallazgos' });
         }
     }
 
@@ -115,7 +115,7 @@ export class FindingsController {
         const dto: CreateFindingDto = req.body;
 
         if (!dto.practice_code || !dto.title || !dto.description || !dto.severity || !dto.recommendation) {
-            res.status(400).json({ error: 'Missing required fields: practice_code, title, description, severity, recommendation' });
+            res.status(400).json({ error: 'Faltan campos obligatorios: practice_code, title, description, severity, recommendation' });
             return;
         }
 
@@ -123,7 +123,7 @@ export class FindingsController {
             const finding = await FindingsService.create(auditId, dto);
             res.status(201).json(finding);
         } catch (error: any) {
-            res.status(500).json({ error: error.message || 'Failed to create finding' });
+            res.status(500).json({ error: error.message || 'Error al crear el hallazgo' });
         }
     }
 
@@ -162,12 +162,12 @@ export class FindingsController {
         try {
             const finding = await FindingsService.update(auditId, findingId, dto);
             if (!finding) {
-                res.status(404).json({ error: 'Finding not found' });
+                res.status(404).json({ error: 'Hallazgo no encontrado' });
                 return;
             }
             res.json(finding);
         } catch (error: any) {
-            res.status(500).json({ error: error.message || 'Failed to update finding' });
+            res.status(500).json({ error: error.message || 'Error al actualizar el hallazgo' });
         }
     }
 
@@ -205,12 +205,12 @@ export class FindingsController {
         try {
             const success = await FindingsService.delete(auditId, findingId);
             if (!success) {
-                res.status(404).json({ error: 'Finding not found' });
+                res.status(404).json({ error: 'Hallazgo no encontrado' });
                 return;
             }
             res.status(204).send();
         } catch (error: any) {
-            res.status(500).json({ error: error.message || 'Failed to delete finding' });
+            res.status(500).json({ error: error.message || 'Error al eliminar el hallazgo' });
         }
     }
 }

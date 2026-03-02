@@ -76,11 +76,11 @@ export function EvidenceStep() {
                 searchParams.delete("code");
                 searchParams.delete("state");
                 setSearchParams(searchParams);
-                alert("Successfully connected to GitHub!");
+                alert("¡Conectado exitosamente a GitHub!");
             }
         } catch (error) {
             console.error("Failed to exchange GitHub token:", error);
-            alert("Failed to connect to GitHub. Please try again.");
+            alert("Falló la conexión a GitHub. Por favor intente de nuevo.");
         } finally {
             setIsConnecting(false);
         }
@@ -138,7 +138,7 @@ export function EvidenceStep() {
 
     const handleContinue = async () => {
         if (selectedRepoIds.size === 0) {
-            alert("Please select at least one repository to proceed.");
+            alert("Por favor seleccione al menos un repositorio para continuar.");
             return;
         }
 
@@ -147,7 +147,7 @@ export function EvidenceStep() {
         const token = localStorage.getItem("github_token");
 
         if (!token) {
-            alert("GitHub token not found. Please reconnect.");
+            alert("Token de GitHub no encontrado. Por favor reconecte.");
             return;
         }
 
@@ -166,7 +166,7 @@ export function EvidenceStep() {
             navigate(`/audit/${auditId}/analysis`);
         } catch (error) {
             console.error("Failed to collect metrics:", error);
-            alert("Failed to collect repository metrics. Please try again.");
+            alert("Falló la recolección de métricas del repositorio. Por favor intente de nuevo.");
         } finally {
             setIsCollectingMetrics(false);
         }
@@ -178,14 +178,14 @@ export function EvidenceStep() {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "8px" }}>
                 <div>
                     <div style={{ fontSize: "12px", fontWeight: "bold", color: "#2196F3", textTransform: "uppercase", marginBottom: "4px" }}>
-                        Step 2 of 5 • Evidence Collection
+                        Paso 2 de 5 • Recolección de Evidencia
                     </div>
                     <h2 style={{ fontSize: "28px", fontWeight: "bold", color: "#1a1a1a", margin: 0 }}>
-                        Evidence Repositories
+                        Repositorios de Evidencia
                     </h2>
                 </div>
                 <div style={{ textAlign: "right" }}>
-                    <div style={{ fontSize: "14px", fontWeight: "bold", color: "#1a1a1a", marginBottom: "4px" }}>33% Completed</div>
+                    <div style={{ fontSize: "14px", fontWeight: "bold", color: "#1a1a1a", marginBottom: "4px" }}>33% Completado</div>
                     <div style={{ width: "200px", height: "6px", backgroundColor: "#e0e0e0", borderRadius: "3px" }}>
                         <div style={{ width: "33%", height: "100%", backgroundColor: "#2196F3", borderRadius: "3px" }} />
                     </div>
@@ -198,7 +198,7 @@ export function EvidenceStep() {
                 <div style={{ flex: 1, position: "relative" }}>
                     <input
                         type="text"
-                        placeholder="Search repositories by name..."
+                        placeholder="Buscar repositorios por nombre..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         disabled={!isConnected}
@@ -232,13 +232,13 @@ export function EvidenceStep() {
                             fontWeight: "600"
                         }}
                     >
-                        <span>{isConnecting ? "Connecting..." : isConnected ? "✓ Connected to GitHub" : "Connect to GitHub"}</span>
+                        <span>{isConnecting ? "Conectando..." : isConnected ? "✓ Conectado a GitHub" : "Conectar a GitHub"}</span>
                     </button>
                     <button
                         onClick={() => isConnected && fetchRepositories()}
                         disabled={!isConnected || isLoadingRepos}
                         style={{ padding: "8px 16px", border: "1px solid #e0e0e0", borderRadius: "6px", backgroundColor: "white", cursor: isConnected ? "pointer" : "not-allowed", display: "flex", alignItems: "center", gap: "8px", color: "#333", fontWeight: "500", opacity: isConnected ? 1 : 0.5 }}>
-                        <span>Refresh</span>
+                        <span>Actualizar</span>
                     </button>
                 </div>
             </div>
@@ -248,17 +248,17 @@ export function EvidenceStep() {
                 {!isConnected ? (
                     <div style={{ padding: "60px", textAlign: "center", color: "#666" }}>
                         <div style={{ fontSize: "40px", marginBottom: "16px" }}>🐙</div>
-                        <h3 style={{ margin: "0 0 8px 0", color: "#333" }}>GitHub Connection Required</h3>
-                        <p style={{ margin: 0, fontSize: "14px" }}>Connect your account to select repositories for this audit.</p>
+                        <h3 style={{ margin: "0 0 8px 0", color: "#333" }}>Se Requiere Conexión a GitHub</h3>
+                        <p style={{ margin: 0, fontSize: "14px" }}>Conecte su cuenta para seleccionar repositorios para esta auditoría.</p>
                     </div>
                 ) : isLoadingRepos ? (
                     <div style={{ padding: "60px", textAlign: "center", color: "#666" }}>
-                        <div style={{ marginBottom: "16px" }}>Loading repositories...</div>
+                        <div style={{ marginBottom: "16px" }}>Cargando repositorios...</div>
                     </div>
                 ) : filteredRepos.length === 0 ? (
                     <div style={{ padding: "60px", textAlign: "center", color: "#666" }}>
-                        <h3 style={{ margin: "0 0 8px 0", color: "#333" }}>No repositories found</h3>
-                        <p style={{ margin: 0, fontSize: "14px" }}>{searchQuery ? "No results match your search." : "We couldn't find any repositories in your GitHub account."}</p>
+                        <h3 style={{ margin: "0 0 8px 0", color: "#333" }}>No se encontraron repositorios</h3>
+                        <p style={{ margin: 0, fontSize: "14px" }}>{searchQuery ? "Ningún resultado coincide con su búsqueda." : "No pudimos encontrar ningún repositorio en su cuenta de GitHub."}</p>
                     </div>
                 ) : (
                     <>
@@ -273,10 +273,10 @@ export function EvidenceStep() {
                                             style={{ cursor: "pointer" }}
                                         />
                                     </th>
-                                    <th style={{ textAlign: "left", padding: "16px", fontSize: "12px", fontWeight: "700", color: "#999", textTransform: "uppercase" }}>Repository Name</th>
-                                    <th style={{ textAlign: "left", padding: "16px", fontSize: "12px", fontWeight: "700", color: "#999", textTransform: "uppercase" }}>Primary Language</th>
-                                    <th style={{ textAlign: "left", padding: "16px", fontSize: "12px", fontWeight: "700", color: "#999", textTransform: "uppercase" }}>Last Updated</th>
-                                    <th style={{ textAlign: "left", padding: "16px", fontSize: "12px", fontWeight: "700", color: "#999", textTransform: "uppercase" }}>Default Branch</th>
+                                    <th style={{ textAlign: "left", padding: "16px", fontSize: "12px", fontWeight: "700", color: "#999", textTransform: "uppercase" }}>Nombre del Repositorio</th>
+                                    <th style={{ textAlign: "left", padding: "16px", fontSize: "12px", fontWeight: "700", color: "#999", textTransform: "uppercase" }}>Lenguaje Principal</th>
+                                    <th style={{ textAlign: "left", padding: "16px", fontSize: "12px", fontWeight: "700", color: "#999", textTransform: "uppercase" }}>Última Actualización</th>
+                                    <th style={{ textAlign: "left", padding: "16px", fontSize: "12px", fontWeight: "700", color: "#999", textTransform: "uppercase" }}>Rama Predeterminada</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -336,7 +336,7 @@ export function EvidenceStep() {
                             backgroundColor: "#fafafa"
                         }}>
                             <div style={{ fontSize: "13px", color: "#666" }}>
-                                Showing {Math.min(filteredRepos.length, (currentPage - 1) * itemsPerPage + 1)} to {Math.min(filteredRepos.length, currentPage * itemsPerPage)} of {filteredRepos.length} repositories
+                                Mostrando {Math.min(filteredRepos.length, (currentPage - 1) * itemsPerPage + 1)} a {Math.min(filteredRepos.length, currentPage * itemsPerPage)} de {filteredRepos.length} repositorios
                             </div>
                             <div style={{ display: "flex", gap: "8px" }}>
                                 <button
@@ -352,10 +352,10 @@ export function EvidenceStep() {
                                         color: "#333"
                                     }}
                                 >
-                                    Previous
+                                    Anterior
                                 </button>
                                 <div style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "13px", fontWeight: "600", color: "#333", padding: "0 8px" }}>
-                                    Page {currentPage} of {totalPages}
+                                    Página {currentPage} de {totalPages}
                                 </div>
                                 <button
                                     disabled={currentPage === totalPages || totalPages === 0}
@@ -370,7 +370,7 @@ export function EvidenceStep() {
                                         color: "#333"
                                     }}
                                 >
-                                    Next
+                                    Siguiente
                                 </button>
                             </div>
                         </div>
@@ -379,13 +379,15 @@ export function EvidenceStep() {
             </div>
 
             {/* Selection Info */}
-            {isConnected && repos.length > 0 && (
-                <div style={{ marginTop: "16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div style={{ fontSize: "14px", color: "#666", fontWeight: "500" }}>
-                        {selectedRepoIds.size} repositories selected for audit.
+            {
+                isConnected && repos.length > 0 && (
+                    <div style={{ marginTop: "16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <div style={{ fontSize: "14px", color: "#666", fontWeight: "500" }}>
+                            {selectedRepoIds.size} repositorios seleccionados para auditoría.
+                        </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Footer Navigation */}
             <div style={{
@@ -399,7 +401,7 @@ export function EvidenceStep() {
                     onClick={() => navigate(`/audit/new/scope`)}
                     style={{ background: "none", border: "none", cursor: "pointer", color: "#666", fontSize: "14px", fontWeight: "600", display: "flex", alignItems: "center", gap: "8px" }}
                 >
-                    ← Back to Configuration
+                    ← Volver a Configuración
                 </button>
                 <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
                     <button
@@ -419,10 +421,10 @@ export function EvidenceStep() {
                             gap: "8px"
                         }}
                     >
-                        {isCollectingMetrics ? "Collecting Metrics..." : "Continue to Analysis →"}
+                        {isCollectingMetrics ? "Recolectando Métricas..." : "Continuar a Análisis →"}
                     </button>
                 </div>
             </div>
-        </div>
+        </div >
     );
 }
