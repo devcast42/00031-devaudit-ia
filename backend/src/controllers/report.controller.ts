@@ -1,15 +1,15 @@
 import { Request, Response } from 'express';
-import { ReportService } from '../services/report.service';
+import { ReportServiceV2 } from '../services/report-v2.service';
 
 export class ReportController {
     /**
-     * Generates the audit report by consolidating all data.
+     * Generates the professional audit report.
      * @openapi
      * /audits/{id}/report/generate:
      *   post:
      *     tags:
      *       - Report
-     *     description: Generates the audit report from analysis and approved findings
+     *     description: Generates the professional audit report with 9 sections
      *     parameters:
      *       - in: path
      *         name: id
@@ -19,14 +19,14 @@ export class ReportController {
      *         description: Audit ID
      *     responses:
      *       200:
-     *         description: Report generated successfully
+     *         description: ProfessionalReportData
      *       400:
      *         description: Missing data or audit finalized
      */
     static async generateReport(req: Request, res: Response): Promise<void> {
         const auditId = req.params.id as string;
         try {
-            const reportData = await ReportService.generateAuditReport(auditId);
+            const reportData = await ReportServiceV2.generateReport(auditId);
             res.json(reportData);
         } catch (error: any) {
             res.status(400).json({ error: error.message || 'Error al generar el informe' });
@@ -34,13 +34,13 @@ export class ReportController {
     }
 
     /**
-     * Gets the stored report for an audit.
+     * Gets the stored report.
      * @openapi
      * /audits/{id}/report:
      *   get:
      *     tags:
      *       - Report
-     *     description: Retrieves the stored report for an audit
+     *     description: Retrieves the stored professional report
      *     parameters:
      *       - in: path
      *         name: id
@@ -50,14 +50,14 @@ export class ReportController {
      *         description: Audit ID
      *     responses:
      *       200:
-     *         description: Report data
+     *         description: ProfessionalReportData
      *       404:
      *         description: No report found
      */
     static async getReport(req: Request, res: Response): Promise<void> {
         const auditId = req.params.id as string;
         try {
-            const reportData = await ReportService.getReport(auditId);
+            const reportData = await ReportServiceV2.getReport(auditId);
             if (!reportData) {
                 res.status(404).json({ error: 'No se encontró ningún informe. Genere el informe primero.' });
                 return;
@@ -69,7 +69,7 @@ export class ReportController {
     }
 
     /**
-     * Finalizes the audit and locks it.
+     * Finalizes the audit.
      * @openapi
      * /audits/{id}/report/finalize:
      *   post:
@@ -92,7 +92,7 @@ export class ReportController {
     static async finalizeAudit(req: Request, res: Response): Promise<void> {
         const auditId = req.params.id as string;
         try {
-            const reportData = await ReportService.finalizeAudit(auditId);
+            const reportData = await ReportServiceV2.finalizeAudit(auditId);
             res.json(reportData);
         } catch (error: any) {
             res.status(400).json({ error: error.message || 'Error al finalizar la auditoría' });
