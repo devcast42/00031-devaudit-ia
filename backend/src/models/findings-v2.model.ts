@@ -10,6 +10,17 @@
  */
 
 /**
+ * Evidence Attachment for external manuals or visual proofs.
+ */
+export interface EvidenceAttachment {
+    file_name: string;
+    original_name: string;
+    mime_type: string;
+    url: string;
+    uploaded_at: string;
+}
+
+/**
  * A finding ready for UI consumption.
  * Enriched with display-friendly fields (practice_name, recommendation)
  * while preserving all traceability references.
@@ -29,6 +40,7 @@ export interface UIFinding {
     source: 'automatic' | 'manual';
     status: 'draft' | 'approved';
     analysis_source_id: string;
+    attachments?: EvidenceAttachment[];
     created_at: string;
     updated_at: string;
 }

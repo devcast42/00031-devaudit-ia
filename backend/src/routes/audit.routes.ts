@@ -19,11 +19,13 @@ router.get('/:id/analysis', AnalysisController.getAnalysis);
 router.get('/:id/metrics', AnalysisController.getMetrics);
 
 // Findings routes
+import { uploadEvidence } from '../middleware/upload.middleware';
 router.post('/:id/findings/generate', FindingsController.generateFindings);
 router.get('/:id/findings', FindingsController.getFindings);
 router.post('/:id/findings', FindingsController.createFinding);
 router.patch('/:id/findings/:findingId', FindingsController.updateFinding);
 router.delete('/:id/findings/:findingId', FindingsController.deleteFinding);
+router.post('/:id/findings/:findingId/evidence', uploadEvidence.single('evidence'), FindingsController.uploadEvidence);
 
 // Report routes
 router.post('/:id/report/generate', ReportController.generateReport);

@@ -343,40 +343,42 @@ ${[{ title: 'Corto Plazo (0–30 días)', items: d.roadmap.short_term }, { title
                             {activeSection === 3 && (
                                 <Section title={`📋 Matriz de Hallazgos Formal (${data.findings_matrix.length})`}>
                                     {data.findings_matrix.length === 0 ? <p style={{ color: "#666" }}>No hay hallazgos aprobados.</p> : (
-                                        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                                            <thead><tr style={{ borderBottom: "2px solid #e0e0e0" }}>
-                                                {["ID", "Práctica", "Repositorio", "Severidad", "Título", "Regla", "Ref."].map(h => (
-                                                    <th key={h} style={{ textAlign: "left", padding: "12px 8px", fontSize: "11px", fontWeight: 700, color: "#999", textTransform: "uppercase" }}>{h}</th>
-                                                ))}
-                                            </tr></thead>
-                                            <tbody>
-                                                {data.findings_matrix.map(f => (
-                                                    <>
-                                                        <tr key={f.id} onClick={() => setExpandedFinding(expandedFinding === f.id ? null : f.id)} style={{ borderBottom: expandedFinding === f.id ? "none" : "1px solid #f0f0f0", cursor: "pointer" }}>
-                                                            <td style={{ padding: "10px 8px", fontSize: "12px", fontFamily: "monospace", color: "#666" }}>{f.id.substring(0, 8)}</td>
-                                                            <td style={{ padding: "10px 8px", fontSize: "13px", fontWeight: 600 }}>{f.practice}</td>
-                                                            <td style={{ padding: "10px 8px", fontSize: "13px", color: "#555" }}>{f.repository}</td>
-                                                            <td style={{ padding: "10px 8px" }}><SevBadge s={f.severity} /></td>
-                                                            <td style={{ padding: "10px 8px", fontSize: "13px", fontWeight: 600, color: "#333" }}>{f.title}</td>
-                                                            <td style={{ padding: "10px 8px", fontSize: "12px", fontFamily: "monospace", color: "#666" }}>{f.rule_violated}</td>
-                                                            <td style={{ padding: "10px 8px", fontSize: "12px", color: "#888" }}>{f.standard_reference}</td>
-                                                        </tr>
-                                                        {expandedFinding === f.id && (
-                                                            <tr key={`${f.id}-exp`} style={{ borderBottom: "1px solid #f0f0f0" }}>
-                                                                <td colSpan={7} style={{ padding: "0 8px 16px", backgroundColor: "#fafafa" }}>
-                                                                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", padding: "12px" }}>
-                                                                        <div><DLabel>Descripción</DLabel><DVal>{f.description}</DVal></div>
-                                                                        <div><DLabel>Impacto</DLabel><DVal>{f.impact}</DVal></div>
-                                                                        <div><DLabel>Recomendación</DLabel><DVal>{f.recommendation}</DVal></div>
-                                                                        <div><DLabel>Evidencia</DLabel><DVal>{Object.entries(f.evidence).map(([k, v]) => <div key={k}><span style={{ fontFamily: "monospace", fontWeight: 600 }}>{k}:</span> {String(v)}</div>)}</DVal></div>
-                                                                    </div>
-                                                                </td>
+                                        <div style={{ overflowX: "auto", paddingBottom: "8px" }}>
+                                            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "900px" }}>
+                                                <thead><tr style={{ borderBottom: "2px solid #e0e0e0" }}>
+                                                    {["ID", "Práctica", "Repositorio", "Severidad", "Título", "Regla", "Ref."].map(h => (
+                                                        <th key={h} style={{ textAlign: "left", padding: "12px 8px", fontSize: "11px", fontWeight: 700, color: "#999", textTransform: "uppercase" }}>{h}</th>
+                                                    ))}
+                                                </tr></thead>
+                                                <tbody>
+                                                    {data.findings_matrix.map(f => (
+                                                        <>
+                                                            <tr key={f.id} onClick={() => setExpandedFinding(expandedFinding === f.id ? null : f.id)} style={{ borderBottom: expandedFinding === f.id ? "none" : "1px solid #f0f0f0", cursor: "pointer" }}>
+                                                                <td style={{ padding: "10px 8px", fontSize: "12px", fontFamily: "monospace", color: "#666" }}>{f.id.substring(0, 8)}</td>
+                                                                <td style={{ padding: "10px 8px", fontSize: "13px", fontWeight: 600 }}>{f.practice}</td>
+                                                                <td style={{ padding: "10px 8px", fontSize: "13px", color: "#555" }}>{f.repository}</td>
+                                                                <td style={{ padding: "10px 8px" }}><SevBadge s={f.severity} /></td>
+                                                                <td style={{ padding: "10px 8px", fontSize: "13px", fontWeight: 600, color: "#333" }}>{f.title}</td>
+                                                                <td style={{ padding: "10px 8px", fontSize: "12px", fontFamily: "monospace", color: "#666" }}>{f.rule_violated}</td>
+                                                                <td style={{ padding: "10px 8px", fontSize: "12px", color: "#888" }}>{f.standard_reference}</td>
                                                             </tr>
-                                                        )}
-                                                    </>
-                                                ))}
-                                            </tbody>
-                                        </table>
+                                                            {expandedFinding === f.id && (
+                                                                <tr key={`${f.id}-exp`} style={{ borderBottom: "1px solid #f0f0f0" }}>
+                                                                    <td colSpan={7} style={{ padding: "0 8px 16px", backgroundColor: "#fafafa" }}>
+                                                                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", padding: "12px" }}>
+                                                                            <div><DLabel>Descripción</DLabel><DVal>{f.description}</DVal></div>
+                                                                            <div><DLabel>Impacto</DLabel><DVal>{f.impact}</DVal></div>
+                                                                            <div><DLabel>Recomendación</DLabel><DVal>{f.recommendation}</DVal></div>
+                                                                            <div><DLabel>Evidencia</DLabel><DVal>{Object.entries(f.evidence).map(([k, v]) => <div key={k}><span style={{ fontFamily: "monospace", fontWeight: 600 }}>{k}:</span> {String(v)}</div>)}</DVal></div>
+                                                                        </div>
+                                                                    </td>
+                                                                </tr>
+                                                            )}
+                                                        </>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
                                     )}
                                 </Section>
                             )}
@@ -392,24 +394,26 @@ ${[{ title: 'Corto Plazo (0–30 días)', items: d.roadmap.short_term }, { title
                                     </SubSection>
                                     <SubSection title="Cadena de Trazabilidad">
                                         {data.traceability.chains.length === 0 ? <p style={{ color: "#666" }}>Sin cadenas de trazabilidad (todos los controles cumplidos).</p> : (
-                                            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                                                <thead><tr style={{ borderBottom: "2px solid #e0e0e0" }}>
-                                                    {["Repo", "Métrica", "Valor", "Regla", "Resultado", "Hallazgo", "Nivel Práctica"].map(h => (
-                                                        <th key={h} style={{ textAlign: "left", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#999", textTransform: "uppercase" }}>{h}</th>
-                                                    ))}
-                                                </tr></thead>
-                                                <tbody>{data.traceability.chains.map((c, i) => (
-                                                    <tr key={i} style={{ borderBottom: "1px solid #f0f0f0" }}>
-                                                        <td style={{ padding: "10px 8px", fontSize: "13px", color: "#555" }}>{c.repository}</td>
-                                                        <td style={{ padding: "10px 8px", fontSize: "12px", fontFamily: "monospace" }}>{c.evidence_metric}</td>
-                                                        <td style={{ padding: "10px 8px", fontSize: "13px", fontWeight: 600 }}>{String(c.evidence_value)}</td>
-                                                        <td style={{ padding: "10px 8px", fontSize: "12px", fontFamily: "monospace" }}>{c.rule_evaluated}</td>
-                                                        <td style={{ padding: "10px 8px" }}><span style={{ padding: "3px 10px", borderRadius: "10px", fontSize: "11px", fontWeight: 700, backgroundColor: "#FFEBEE", color: "#C62828" }}>FAIL</span></td>
-                                                        <td style={{ padding: "10px 8px", fontSize: "13px", color: "#333" }}>{c.finding_title}</td>
-                                                        <td style={{ padding: "10px 8px" }}><span style={{ padding: "3px 10px", borderRadius: "10px", fontSize: "11px", fontWeight: 700, backgroundColor: maturityColor(c.practice_level) + "22", color: maturityColor(c.practice_level) }}>{c.practice_level}</span></td>
-                                                    </tr>
-                                                ))}</tbody>
-                                            </table>
+                                            <div style={{ overflowX: "auto", paddingBottom: "8px" }}>
+                                                <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "900px" }}>
+                                                    <thead><tr style={{ borderBottom: "2px solid #e0e0e0" }}>
+                                                        {["Repo", "Métrica", "Valor", "Regla", "Resultado", "Hallazgo", "Nivel Práctica"].map(h => (
+                                                            <th key={h} style={{ textAlign: "left", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#999", textTransform: "uppercase" }}>{h}</th>
+                                                        ))}
+                                                    </tr></thead>
+                                                    <tbody>{data.traceability.chains.map((c, i) => (
+                                                        <tr key={i} style={{ borderBottom: "1px solid #f0f0f0" }}>
+                                                            <td style={{ padding: "10px 8px", fontSize: "13px", color: "#555" }}>{c.repository}</td>
+                                                            <td style={{ padding: "10px 8px", fontSize: "12px", fontFamily: "monospace" }}>{c.evidence_metric}</td>
+                                                            <td style={{ padding: "10px 8px", fontSize: "13px", fontWeight: 600 }}>{String(c.evidence_value)}</td>
+                                                            <td style={{ padding: "10px 8px", fontSize: "12px", fontFamily: "monospace" }}>{c.rule_evaluated}</td>
+                                                            <td style={{ padding: "10px 8px" }}><span style={{ padding: "3px 10px", borderRadius: "10px", fontSize: "11px", fontWeight: 700, backgroundColor: "#FFEBEE", color: "#C62828" }}>FAIL</span></td>
+                                                            <td style={{ padding: "10px 8px", fontSize: "13px", color: "#333" }}>{c.finding_title}</td>
+                                                            <td style={{ padding: "10px 8px" }}><span style={{ padding: "3px 10px", borderRadius: "10px", fontSize: "11px", fontWeight: 700, backgroundColor: maturityColor(c.practice_level) + "22", color: maturityColor(c.practice_level) }}>{c.practice_level}</span></td>
+                                                        </tr>
+                                                    ))}</tbody>
+                                                </table>
+                                            </div>
                                         )}
                                     </SubSection>
                                 </Section>
@@ -448,24 +452,26 @@ ${[{ title: 'Corto Plazo (0–30 días)', items: d.roadmap.short_term }, { title
                             {/* SEC 6: Recommendations */}
                             {activeSection === 6 && (
                                 <Section title="✅ Recomendaciones Prioritizadas">
-                                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                                        <thead><tr style={{ borderBottom: "2px solid #e0e0e0" }}>
-                                            {["#", "Acción", "Sev.", "Impacto", "Facilidad", "Responsable", "Plazo"].map(h => (
-                                                <th key={h} style={{ textAlign: "left", padding: "12px 8px", fontSize: "11px", fontWeight: 700, color: "#999", textTransform: "uppercase" }}>{h}</th>
-                                            ))}
-                                        </tr></thead>
-                                        <tbody>{data.recommendations.map(r => (
-                                            <tr key={r.priority} style={{ borderBottom: "1px solid #f0f0f0" }}>
-                                                <td style={{ padding: "12px 8px", fontSize: "16px", fontWeight: "bold", color: "#1565C0" }}>{r.priority}</td>
-                                                <td style={{ padding: "12px 8px", fontSize: "13px", color: "#444", maxWidth: "280px" }}>{r.action}</td>
-                                                <td style={{ padding: "12px 8px" }}><SevBadge s={r.severity} /></td>
-                                                <td style={{ padding: "12px 8px", fontSize: "13px", fontWeight: 600 }}>{r.impact}</td>
-                                                <td style={{ padding: "12px 8px", fontSize: "13px" }}>{r.implementation_ease}</td>
-                                                <td style={{ padding: "12px 8px", fontSize: "13px", color: "#555" }}>{r.suggested_responsible}</td>
-                                                <td style={{ padding: "12px 8px", fontSize: "13px", fontWeight: 600, color: "#333" }}>{r.recommended_deadline}</td>
-                                            </tr>
-                                        ))}</tbody>
-                                    </table>
+                                    <div style={{ overflowX: "auto", paddingBottom: "8px" }}>
+                                        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "900px" }}>
+                                            <thead><tr style={{ borderBottom: "2px solid #e0e0e0" }}>
+                                                {["#", "Acción", "Sev.", "Impacto", "Facilidad", "Responsable", "Plazo"].map(h => (
+                                                    <th key={h} style={{ textAlign: "left", padding: "12px 8px", fontSize: "11px", fontWeight: 700, color: "#999", textTransform: "uppercase" }}>{h}</th>
+                                                ))}
+                                            </tr></thead>
+                                            <tbody>{data.recommendations.map(r => (
+                                                <tr key={r.priority} style={{ borderBottom: "1px solid #f0f0f0" }}>
+                                                    <td style={{ padding: "12px 8px", fontSize: "16px", fontWeight: "bold", color: "#1565C0" }}>{r.priority}</td>
+                                                    <td style={{ padding: "12px 8px", fontSize: "13px", color: "#444", maxWidth: "280px" }}>{r.action}</td>
+                                                    <td style={{ padding: "12px 8px" }}><SevBadge s={r.severity} /></td>
+                                                    <td style={{ padding: "12px 8px", fontSize: "13px", fontWeight: 600 }}>{r.impact}</td>
+                                                    <td style={{ padding: "12px 8px", fontSize: "13px" }}>{r.implementation_ease}</td>
+                                                    <td style={{ padding: "12px 8px", fontSize: "13px", color: "#555" }}>{r.suggested_responsible}</td>
+                                                    <td style={{ padding: "12px 8px", fontSize: "13px", fontWeight: 600, color: "#333" }}>{r.recommended_deadline}</td>
+                                                </tr>
+                                            ))}</tbody>
+                                        </table>
+                                    </div>
                                 </Section>
                             )}
 

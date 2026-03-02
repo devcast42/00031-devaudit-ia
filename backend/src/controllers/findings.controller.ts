@@ -206,16 +206,84 @@ export class FindingsController {
     static async deleteFinding(req: Request, res: Response): Promise<void> {
         const auditId = req.params.id as string;
         const findingId = req.params.findingId as string;
-
         try {
-            const success = await FindingsServiceV2.delete(auditId, findingId);
-            if (!success) {
+            const deleted = await FindingsServiceV2.delete(auditId, findingId);
+            if (!deleted) {
                 res.status(404).json({ error: 'Hallazgo no encontrado' });
                 return;
             }
             res.status(204).send();
         } catch (error: any) {
             res.status(500).json({ error: error.message || 'Error al eliminar el hallazgo' });
+        }
+    }
+
+    /**
+     * Uploads manual evidence for a finding.
+     * @openapi
+     * /audits/{id}/findings/{findingId}/evidence:
+     *   post:
+     *     tags:
+     *       - Findings
+     *     description: Uploads a PDF or Image file as evidence for a finding
+     *     parameters:
+     *       - in: path
+     *         name: id
+     *         required: true
+     *         schema:
+     *           type: string
+     *       - in: path
+     *         name: findingId
+     *         required: true
+     *         schema:
+     *           type: string
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         multipart/form-data:
+     *           schema:
+     *             type: object
+     *             properties:
+     *               evidence:
+     *                 type: string
+     *                 format: binary
+     *     responses:
+     *       200:
+     *         description: File uploaded successfully
+     *       400:
+     *         description: Invalid input or missing file
+     *       404:
+     *         description: Finding not found
+     */
+    static async uploadEvidence(req: Request, res: Response): Promise<void> {
+        const auditId = req.params.id as string;
+        const findingId = req.params.findingId as string;
+        const file = req.file;
+
+        if (!file) {
+            res.status(400).json({ error: 'Falta proveer un archivo de evidencia.' });
+            return;
+        }
+
+        try {
+            const fileUrl = `${req.protocol}://${req.get('host')}/uploads/evidence/${file.filename}`;
+            const fileInfo = {
+                file_name: file.filename,
+                original_name: file.originalname,
+                mime_type: file.mimetype,
+                url: fileUrl,
+            };
+
+            const updatedFinding = await FindingsServiceV2.addAttachment(auditId, findingId, fileInfo);
+
+            if (!updatedFinding) {
+                res.status(404).json({ error: 'Hallazgo no encontrado' });
+                return;
+            }
+
+            res.json(updatedFinding);
+        } catch (error: any) {
+            res.status(500).json({ error: error.message || 'Error al guardar la evidencia.' });
         }
     }
 }

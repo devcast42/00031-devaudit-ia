@@ -173,6 +173,31 @@ export class FindingsServiceV2 {
         return filtered.length < initial;
     }
 
+    /**
+     * Adds an evidence attachment to a finding
+     */
+    static async addAttachment(
+        auditId: string,
+        findingId: string,
+        fileInfo: { file_name: string; original_name: string; mime_type: string; url: string; }
+    ): Promise<UIFinding | undefined> {
+        const findings = this.findingsStore.get(auditId) || [];
+        const index = findings.findIndex(f => f.finding_id === findingId);
+        if (index === -1) return undefined;
+
+        const attachment = { ...fileInfo, uploaded_at: new Date().toISOString() };
+
+        const currentAttachments = findings[index].attachments || [];
+
+        findings[index] = {
+            ...findings[index],
+            attachments: [...currentAttachments, attachment],
+            updated_at: new Date().toISOString(),
+        };
+
+        return findings[index];
+    }
+
     // ─── View Data Builder ──────────────────────────────────────────────────────
 
     /**

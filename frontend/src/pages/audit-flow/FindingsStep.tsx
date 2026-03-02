@@ -4,6 +4,14 @@ import client from "../../app/api";
 
 // ─── Interfaces matching FindingsViewData / UIFinding from backend v2 ───────────
 
+interface EvidenceAttachment {
+    file_name: string;
+    original_name: string;
+    mime_type: string;
+    url: string;
+    uploaded_at: string;
+}
+
 interface UIFinding {
     finding_id: string;
     repository: string;
@@ -19,6 +27,7 @@ interface UIFinding {
     source: "automatic" | "manual";
     status: "draft" | "approved";
     analysis_source_id: string;
+    attachments?: EvidenceAttachment[];
     created_at: string;
     updated_at: string;
 }
@@ -66,6 +75,9 @@ export function FindingsStep() {
 
     // Delete confirmation
     const [deleteId, setDeleteId] = useState<string | null>(null);
+
+    // Upload state
+    const [uploadingId, setUploadingId] = useState<string | null>(null);
 
     const fetchFindings = async () => {
         try {
@@ -150,6 +162,25 @@ export function FindingsStep() {
         const newStatus = f.status === "draft" ? "approved" : "draft";
         await client.patch(`/audits/${auditId}/findings/${f.finding_id}`, { status: newStatus });
         fetchFindings();
+    };
+
+    const handleFileUpload = async (findingId: string, event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        setUploadingId(findingId);
+        const formData = new FormData();
+        formData.append("evidence", file);
+
+        try {
+            await client.post(`/audits/${auditId}/findings/${findingId}/evidence`, formData);
+            fetchFindings();
+        } catch (err: any) {
+            alert(err.response?.data?.error || "Error al subir el archivo.");
+        } finally {
+            setUploadingId(null);
+            event.target.value = "";
+        }
     };
 
     // ─── Filters ────────────────────────────────────────────────────────────────
@@ -353,9 +384,35 @@ export function FindingsStep() {
                                                                     </div>
                                                                 ))
                                                             ) : (
-                                                                <span style={{ fontSize: "12px", color: "#999" }}>Sin evidencia</span>
+                                                                <span style={{ fontSize: "12px", color: "#999" }}>Sin evidencia automática</span>
                                                             )}
                                                         </div>
+                                                    </div>
+
+                                                    {/* Attachments Section */}
+                                                    <div style={{ gridColumn: "span 2", marginTop: "8px", borderTop: "1px solid #eee", paddingTop: "12px" }}>
+                                                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                                                            <div style={detailLabelStyle}>Evidencia Adjunta ({f.attachments?.length || 0})</div>
+                                                            <div>
+                                                                <label style={{ cursor: uploadingId === f.finding_id ? "not-allowed" : "pointer", fontSize: "12px", fontWeight: "600", color: "#2196F3", backgroundColor: "#e3f2fd", padding: "6px 12px", borderRadius: "6px", display: "inline-block" }}>
+                                                                    {uploadingId === f.finding_id ? "⏳ Subiendo..." : "📎 Adjuntar Archivo"}
+                                                                    <input type="file" accept="image/*,.pdf" style={{ display: "none" }} disabled={uploadingId === f.finding_id} onChange={(e) => handleFileUpload(f.finding_id, e)} />
+                                                                </label>
+                                                            </div>
+                                                        </div>
+
+                                                        {f.attachments && f.attachments.length > 0 ? (
+                                                            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                                                                {f.attachments.map((att, idx) => (
+                                                                    <a key={idx} href={att.url} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: "6px", backgroundColor: "white", border: "1px solid #ddd", padding: "6px 12px", borderRadius: "6px", textDecoration: "none", color: "#333", fontSize: "12px", borderBottom: "2px solid #e0e0e0", transition: "transform 0.1s" }} onMouseOver={e => e.currentTarget.style.transform = 'translateY(-1px)'} onMouseOut={e => e.currentTarget.style.transform = 'none'}>
+                                                                        <span>{att.mime_type.includes("pdf") ? "📄" : "🖼️"}</span>
+                                                                        <span style={{ maxWidth: "250px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{att.original_name}</span>
+                                                                    </a>
+                                                                ))}
+                                                            </div>
+                                                        ) : (
+                                                            <div style={{ fontSize: "12px", color: "#999" }}>No hay archivos adjuntos.</div>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </td>
@@ -438,8 +495,36 @@ export function FindingsStep() {
                                 <div>
                                     <label style={labelStyle}>Referencia de Evidencia (opcional)</label>
                                     <input type="text" value={form.evidence_reference} onChange={e => setForm({ ...form, evidence_reference: e.target.value })} placeholder="ej., fuente de métrica o referencia" style={inputStyle} />
+                                    <p style={{ margin: "4px 0 0 0", fontSize: "11px", color: "#888" }}>Podrá adjuntar archivos técnicos (PDF/Imágenes) una vez que el hallazgo sea creado.</p>
                                 </div>
                             )}
+
+                            {editingId && (() => {
+                                const currentFinding = viewData?.findings.find(f => f.finding_id === editingId);
+                                return (
+                                    <div style={{ marginTop: "8px", padding: "16px", backgroundColor: "#f9f9f9", borderRadius: "8px", border: "1px dashed #ccc" }}>
+                                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                                            <label style={{ ...labelStyle, margin: 0 }}>Evidencia Adjunta</label>
+                                            <label style={{ cursor: uploadingId === editingId ? "not-allowed" : "pointer", fontSize: "12px", fontWeight: "600", color: "#2196F3", backgroundColor: "#e3f2fd", padding: "6px 12px", borderRadius: "6px", display: "inline-block" }}>
+                                                {uploadingId === editingId ? "⏳ Subiendo..." : "📎 Adjuntar Archivo"}
+                                                <input type="file" accept="image/*,.pdf" style={{ display: "none" }} disabled={uploadingId === editingId} onChange={(e) => handleFileUpload(editingId, e)} />
+                                            </label>
+                                        </div>
+                                        {currentFinding?.attachments && currentFinding.attachments.length > 0 ? (
+                                            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                                                {currentFinding.attachments.map((att, idx) => (
+                                                    <a key={idx} href={att.url} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: "6px", backgroundColor: "white", border: "1px solid #ddd", padding: "6px 12px", borderRadius: "6px", textDecoration: "none", color: "#333", fontSize: "12px", borderBottom: "2px solid #e0e0e0" }}>
+                                                        <span>{att.mime_type.includes("pdf") ? "📄" : "🖼️"}</span>
+                                                        <span style={{ maxWidth: "250px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{att.original_name}</span>
+                                                    </a>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div style={{ fontSize: "12px", color: "#999" }}>No hay archivos adjuntos.</div>
+                                        )}
+                                    </div>
+                                );
+                            })()}
                         </div>
 
                         <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", marginTop: "24px" }}>
