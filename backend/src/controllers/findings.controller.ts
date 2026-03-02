@@ -1,10 +1,10 @@
 import { Request, Response } from 'express';
-import { FindingsService } from '../services/findings.service';
-import { CreateFindingDto, UpdateFindingDto } from '../models/findings.model';
+import { FindingsServiceV2 } from '../services/findings-v2.service';
+import { CreateUIFindingDto, UpdateUIFindingDto } from '../models/findings-v2.model';
 
 export class FindingsController {
     /**
-     * Auto-generates findings from analysis results.
+     * Auto-generates findings from analysis results (v2 — pure transformation).
      * @openapi
      * /audits/{id}/findings/generate:
      *   post:
@@ -20,15 +20,15 @@ export class FindingsController {
      *         description: Audit ID
      *     responses:
      *       200:
-     *         description: Findings generated successfully
+     *         description: Findings generated successfully (FindingsViewData)
      *       400:
      *         description: No analysis found
      */
     static async generateFindings(req: Request, res: Response): Promise<void> {
         const auditId = req.params.id as string;
         try {
-            const summary = await FindingsService.generateFindingsFromAnalysis(auditId);
-            res.json(summary);
+            const viewData = await FindingsServiceV2.generateFromAnalysis(auditId);
+            res.json(viewData);
         } catch (error: any) {
             res.status(400).json({ error: error.message || 'Error al generar los hallazgos' });
         }
@@ -51,13 +51,13 @@ export class FindingsController {
      *         description: Audit ID
      *     responses:
      *       200:
-     *         description: Returns findings summary
+     *         description: Returns findings view data (FindingsViewData)
      */
     static async getFindings(req: Request, res: Response): Promise<void> {
         const auditId = req.params.id as string;
         try {
-            const summary = await FindingsService.getByAuditId(auditId);
-            res.json(summary);
+            const viewData = await FindingsServiceV2.getByAuditId(auditId);
+            res.json(viewData);
         } catch (error: any) {
             res.status(500).json({ error: error.message || 'Error al obtener los hallazgos' });
         }
@@ -85,13 +85,16 @@ export class FindingsController {
      *           schema:
      *             type: object
      *             required:
-     *               - practice_code
+     *               - practice
+     *               - repository
      *               - title
      *               - description
      *               - severity
      *               - recommendation
      *             properties:
-     *               practice_code:
+     *               practice:
+     *                 type: string
+     *               repository:
      *                 type: string
      *               title:
      *                 type: string
@@ -99,7 +102,7 @@ export class FindingsController {
      *                 type: string
      *               severity:
      *                 type: string
-     *                 enum: [low, medium, high]
+     *                 enum: [HIGH, MEDIUM, LOW]
      *               recommendation:
      *                 type: string
      *               evidence_reference:
@@ -112,15 +115,17 @@ export class FindingsController {
      */
     static async createFinding(req: Request, res: Response): Promise<void> {
         const auditId = req.params.id as string;
-        const dto: CreateFindingDto = req.body;
+        const dto: CreateUIFindingDto = req.body;
 
-        if (!dto.practice_code || !dto.title || !dto.description || !dto.severity || !dto.recommendation) {
-            res.status(400).json({ error: 'Faltan campos obligatorios: practice_code, title, description, severity, recommendation' });
+        if (!dto.practice || !dto.repository || !dto.title || !dto.description || !dto.severity || !dto.recommendation) {
+            res.status(400).json({
+                error: 'Faltan campos obligatorios: practice, repository, title, description, severity, recommendation',
+            });
             return;
         }
 
         try {
-            const finding = await FindingsService.create(auditId, dto);
+            const finding = await FindingsServiceV2.create(auditId, dto);
             res.status(201).json(finding);
         } catch (error: any) {
             res.status(500).json({ error: error.message || 'Error al crear el hallazgo' });
@@ -157,10 +162,10 @@ export class FindingsController {
     static async updateFinding(req: Request, res: Response): Promise<void> {
         const auditId = req.params.id as string;
         const findingId = req.params.findingId as string;
-        const dto: UpdateFindingDto = req.body;
+        const dto: UpdateUIFindingDto = req.body;
 
         try {
-            const finding = await FindingsService.update(auditId, findingId, dto);
+            const finding = await FindingsServiceV2.update(auditId, findingId, dto);
             if (!finding) {
                 res.status(404).json({ error: 'Hallazgo no encontrado' });
                 return;
@@ -203,7 +208,7 @@ export class FindingsController {
         const findingId = req.params.findingId as string;
 
         try {
-            const success = await FindingsService.delete(auditId, findingId);
+            const success = await FindingsServiceV2.delete(auditId, findingId);
             if (!success) {
                 res.status(404).json({ error: 'Hallazgo no encontrado' });
                 return;

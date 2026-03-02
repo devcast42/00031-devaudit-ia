@@ -1,6 +1,5 @@
 import { Audit } from './audit.model';
-import { AuditAnalysis } from './analysis.model';
-import { FormalFinding } from './findings.model';
+import { UIFinding } from './findings-v2.model';
 import { RepositoryMetrics } from './repository-metrics.model';
 
 export interface AuditReport {
@@ -38,6 +37,6 @@ export interface ReportData {
     repositories: Pick<RepositoryMetrics, 'repo_name' | 'repo_full_name'>[];
     maturity_summary: MaturitySummary;
     findings_summary: FindingsSummaryData;
-    findings: FormalFinding[];
+    findings: UIFinding[];
     generated_at: string;
 }

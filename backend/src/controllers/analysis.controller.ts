@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { GitHubService } from '../services/github.service';
 import { MetricsService } from '../services/metrics.service';
-import { AnalysisService } from '../services/analysis.service';
+import { AnalysisServiceV2 } from '../services/analysis-v2.service';
 import { RepositoryMetrics } from '../models/repository-metrics.model';
 
 export class AnalysisController {
@@ -104,7 +104,7 @@ export class AnalysisController {
     }
 
     /**
-     * Runs the audit analysis engine.
+     * Runs the audit analysis engine (v2 — per-repository with full traceability).
      * @openapi
      * /audits/{id}/analysis:
      *   post:
@@ -120,7 +120,7 @@ export class AnalysisController {
      *         description: Audit ID
      *     responses:
      *       200:
-     *         description: Analysis completed successfully
+     *         description: Analysis completed successfully (AnalysisOutput)
      *       400:
      *         description: No metrics found for this audit
      *       500:
@@ -130,7 +130,7 @@ export class AnalysisController {
         const auditId = req.params.id as string;
 
         try {
-            const result = await AnalysisService.runAuditAnalysis(auditId);
+            const result = await AnalysisServiceV2.runAuditAnalysis(auditId);
             res.json(result);
         } catch (error: any) {
             res.status(400).json({ error: error.message || 'Error al ejecutar el análisis' });
@@ -154,7 +154,7 @@ export class AnalysisController {
      *         description: Audit ID
      *     responses:
      *       200:
-     *         description: Returns the analysis results
+     *         description: Returns the analysis results (AnalysisOutput)
      *       404:
      *         description: No analysis found for this audit
      */
@@ -162,7 +162,7 @@ export class AnalysisController {
         const auditId = req.params.id as string;
 
         try {
-            const result = await AnalysisService.getAnalysisByAuditId(auditId);
+            const result = await AnalysisServiceV2.getAnalysisByAuditId(auditId);
             if (!result) {
                 res.status(404).json({ error: 'No se encontró ningún análisis para esta auditoría. Ejecute el análisis primero.' });
                 return;

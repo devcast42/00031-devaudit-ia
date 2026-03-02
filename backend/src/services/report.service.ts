@@ -2,8 +2,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { AuditReport, ReportData } from '../models/report.model';
 import { AuditService } from './audit.service';
 import { MetricsService } from './metrics.service';
-import { AnalysisService } from './analysis.service';
-import { FindingsService } from './findings.service';
+import { AnalysisServiceV2 } from './analysis-v2.service';
+import { FindingsServiceV2 } from './findings-v2.service';
 
 export class ReportService {
     private static reports: AuditReport[] = [];
@@ -33,44 +33,52 @@ export class ReportService {
             repo_full_name: m.repo_full_name,
         }));
 
-        // 4. Get analysis results
-        const analysis = await AnalysisService.getAnalysisByAuditId(auditId);
+        // 4. Get analysis results (v2)
+        const analysis = await AnalysisServiceV2.getAnalysisByAuditId(auditId);
         if (!analysis) {
             throw new Error('No se encontró ningún análisis. Por favor, ejecute el paso de análisis primero.');
         }
 
-        // 5. Get ONLY approved findings
-        const findingsSummary = await FindingsService.getByAuditId(auditId);
-        const approvedFindings = findingsSummary.findings.filter(f => f.status === 'approved');
+        // 5. Get ONLY approved findings (v2)
+        const findingsViewData = await FindingsServiceV2.getByAuditId(auditId);
+        const approvedFindings = findingsViewData.findings.filter(f => f.status === 'approved');
 
-        // 6. Build maturity summary
-        const maturityLabel = (level: number) => {
+        // 6. Build maturity summary from v2 aggregated results
+        const maturityLevelToNumber = (level: string): number => {
             switch (level) {
-                case 1: return 'Inicial';
-                case 2: return 'Gestionado';
-                case 3: return 'Definido';
-                default: return 'Desconocido';
+                case 'Definido': return 3;
+                case 'Gestionado': return 2;
+                default: return 1;
             }
         };
 
+        const practices = Object.entries(analysis.aggregated_results.practice_scores).map(
+            ([code, data]) => ({
+                practice_code: code,
+                practice_name: code === 'SCM' ? 'Gestión de Configuración'
+                    : code === 'QA' ? 'Aseguramiento de Calidad'
+                        : code === 'PM' ? 'Gestión de Proyecto'
+                            : code,
+                score: data.score,
+                max_score: data.max_score,
+                maturity_level: maturityLevelToNumber(data.level),
+            })
+        );
+
+        const globalLevel = maturityLevelToNumber(analysis.aggregated_results.global_maturity_level);
+
         const maturity_summary = {
-            global_level: analysis.global_maturity_level,
-            global_label: maturityLabel(analysis.global_maturity_level),
-            practices: analysis.practices.map(p => ({
-                practice_code: p.practice_code,
-                practice_name: p.practice_name,
-                score: p.score,
-                max_score: p.max_score,
-                maturity_level: p.maturity_level,
-            })),
+            global_level: globalLevel,
+            global_label: analysis.aggregated_results.global_maturity_level,
+            practices,
         };
 
         // 7. Build findings summary (only approved)
         const findings_summary = {
             total: approvedFindings.length,
-            high: approvedFindings.filter(f => f.severity === 'high').length,
-            medium: approvedFindings.filter(f => f.severity === 'medium').length,
-            low: approvedFindings.filter(f => f.severity === 'low').length,
+            high: approvedFindings.filter(f => f.severity === 'HIGH').length,
+            medium: approvedFindings.filter(f => f.severity === 'MEDIUM').length,
+            low: approvedFindings.filter(f => f.severity === 'LOW').length,
         };
 
         // 8. Create or update report record
@@ -79,7 +87,7 @@ export class ReportService {
 
         if (existing) {
             existing.generated_at = now;
-            existing.final_maturity_level = analysis.global_maturity_level;
+            existing.final_maturity_level = globalLevel;
             existing.version = version;
         } else {
             const report: AuditReport = {
@@ -87,7 +95,7 @@ export class ReportService {
                 audit_id: auditId,
                 generated_at: now,
                 generated_by: 'system',
-                final_maturity_level: analysis.global_maturity_level,
+                final_maturity_level: globalLevel,
                 status: 'draft',
                 version,
             };
@@ -134,9 +142,9 @@ export class ReportService {
             throw new Error('Esta auditoría ya ha sido finalizada.');
         }
 
-        // 3. Validate approved findings exist
-        const findingsSummary = await FindingsService.getByAuditId(auditId);
-        const approvedFindings = findingsSummary.findings.filter(f => f.status === 'approved');
+        // 3. Validate approved findings exist (v2)
+        const findingsViewData = await FindingsServiceV2.getByAuditId(auditId);
+        const approvedFindings = findingsViewData.findings.filter(f => f.status === 'approved');
         if (approvedFindings.length === 0) {
             throw new Error('No se puede finalizar: no hay hallazgos aprobados. Por favor, apruebe al menos un hallazgo.');
         }
