@@ -6,8 +6,9 @@
  * responsible party suggestion, and deadline.
  */
 
-import { FindingsViewData } from '../../models/findings-v2.model';
+import { FindingsViewData, UIFinding } from '../../models/findings-v2.model';
 import { PrioritizedRecommendation } from '../../models/report-v2.model';
+import { AIGeneratedRecommendation } from '../ai/gemini.service';
 
 const RESPONSIBLE_MAP: Record<string, string> = {
     SCM: 'Líder de Ingeniería / DevOps',
@@ -31,13 +32,16 @@ function assessImplementationEase(ruleViolated: string): 'Fácil' | 'Moderada' |
     return 'Moderada';
 }
 
-function generateActionText(finding: { title: string; practice: string; repository: string; rule_violated: string }): string {
+function generateActionText(finding: UIFinding): string {
     return `Implementar controles para "${finding.title}" en el repositorio ${finding.repository}. ` +
         `Establecer procedimientos documentados y verificables para la práctica ${finding.practice}. ` +
         `Asignar responsable y verificar cumplimiento en el plazo establecido.`;
 }
 
-export function generateRecommendations(findingsData: FindingsViewData): PrioritizedRecommendation[] {
+export function generateRecommendations(
+    findingsData: FindingsViewData,
+    aiRecommendations: AIGeneratedRecommendation[] = []
+): PrioritizedRecommendation[] {
     const approved = findingsData.findings.filter(f => f.status === 'approved');
 
     // Sort by severity (HIGH first), then by practice
@@ -49,14 +53,16 @@ export function generateRecommendations(findingsData: FindingsViewData): Priorit
     });
 
     return sorted.map((f, idx) => {
-        const ease = assessImplementationEase(f.rule_violated);
-        const impactLevel: 'Alto' | 'Medio' | 'Bajo' =
-            f.severity === 'HIGH' ? 'Alto' : f.severity === 'MEDIUM' ? 'Medio' : 'Bajo';
+        const aiRec = aiRecommendations.find(r => r.finding_id === f.finding_id);
+
+        const ease = aiRec?.implementation_ease || assessImplementationEase(f.rule_violated);
+        const impactLevel: 'Alto' | 'Medio' | 'Bajo' = aiRec?.impact ||
+            (f.severity === 'HIGH' ? 'Alto' : f.severity === 'MEDIUM' ? 'Medio' : 'Bajo');
 
         return {
             priority: idx + 1,
             finding_id: f.finding_id,
-            action: generateActionText(f),
+            action: aiRec?.suggested_action || generateActionText(f),
             practice: f.practice,
             severity: f.severity,
             impact: impactLevel,

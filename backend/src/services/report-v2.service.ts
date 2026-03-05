@@ -24,6 +24,7 @@ import { generateRecommendations } from './report-builder/recommendations.genera
 import { generateRoadmap } from './report-builder/roadmap.generator';
 import { generateTraceability } from './report-builder/traceability.generator';
 import { generateConclusion } from './report-builder/conclusion.generator';
+import { GeminiService } from './ai/gemini.service';
 
 export class ReportServiceV2 {
     private static reportStore: Map<string, ProfessionalReportData> = new Map();
@@ -50,17 +51,35 @@ export class ReportServiceV2 {
 
         const findingsData = await FindingsServiceV2.getByAuditId(auditId);
 
+        // 1.5. Generate AI Enrichments (Professional Recommendations and Full Report Content)
+        const approvedFindings = findingsData.findings.filter(f => f.status === 'approved');
+
+        const [aiRecommendations, fullAiEnrichment] = await Promise.all([
+            GeminiService.generateRecommendations(approvedFindings),
+            GeminiService.enrichFullReport({
+                name: audit.name,
+                organization: audit.organization,
+                findings: approvedFindings,
+                summary_stats: {
+                    total_findings: findingsData.total_findings,
+                    by_severity: findingsData.by_severity,
+                    global_maturity_level: analysis.aggregated_results.global_maturity_level
+                }
+            })
+        ]);
+
         // 2. Generate each section
-        const executiveSummary = generateExecutiveSummary(analysis, findingsData);
+        const executiveSummary = generateExecutiveSummary(analysis, findingsData, fullAiEnrichment?.executive_summary);
         const practiceDetails = generatePracticeDetails(analysis);
         const findingsMatrix = generateFindingsMatrix(findingsData);
-        const riskAnalysis = generateRiskAnalysis(analysis, findingsData);
-        const recommendations = generateRecommendations(findingsData);
+        const riskAnalysis = generateRiskAnalysis(analysis, findingsData, fullAiEnrichment?.risk_analysis);
+        const recommendations = generateRecommendations(findingsData, aiRecommendations);
         const roadmap = generateRoadmap(recommendations);
         const traceability = generateTraceability(analysis);
         const conclusion = generateConclusion(
             analysis, findingsData, riskAnalysis,
             audit.name, audit.organization,
+            fullAiEnrichment?.conclusion
         );
 
         // 3. Build metadata with versioning

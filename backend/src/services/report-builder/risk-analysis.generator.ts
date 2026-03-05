@@ -8,6 +8,7 @@
 import { AnalysisOutput } from '../../models/analysis-v2.model';
 import { FindingsViewData } from '../../models/findings-v2.model';
 import { RiskAnalysis, CriticalArea } from '../../models/report-v2.model';
+import { FullReportEnrichment } from '../ai/gemini.service';
 
 const PRACTICE_NAMES: Record<string, string> = {
     SCM: 'Gestión de Configuración',
@@ -17,7 +18,8 @@ const PRACTICE_NAMES: Record<string, string> = {
 
 export function generateRiskAnalysis(
     analysis: AnalysisOutput,
-    findingsData: FindingsViewData
+    findingsData: FindingsViewData,
+    aiEnrichment?: FullReportEnrichment['risk_analysis']
 ): RiskAnalysis {
     const approved = findingsData.findings.filter(f => f.status === 'approved');
     const highCount = approved.filter(f => f.severity === 'HIGH').length;
@@ -102,8 +104,8 @@ export function generateRiskAnalysis(
     return {
         global_risk_level: globalRiskLevel,
         global_risk_score: normalizedRisk,
-        risk_classification: riskClassification,
+        risk_classification: aiEnrichment?.risk_classification || riskClassification,
         critical_areas: criticalAreas,
-        weakness_dependencies: weaknessDependencies,
+        weakness_dependencies: aiEnrichment?.weakness_dependencies || weaknessDependencies,
     };
 }

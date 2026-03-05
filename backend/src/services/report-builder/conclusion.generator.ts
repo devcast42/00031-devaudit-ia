@@ -8,6 +8,7 @@
 import { AnalysisOutput } from '../../models/analysis-v2.model';
 import { FindingsViewData } from '../../models/findings-v2.model';
 import { RiskAnalysis } from '../../models/report-v2.model';
+import { FullReportEnrichment } from '../ai/gemini.service';
 
 const PRACTICE_NAMES: Record<string, string> = {
     SCM: 'Gestión de Configuración',
@@ -21,6 +22,7 @@ export function generateConclusion(
     riskAnalysis: RiskAnalysis,
     auditName: string,
     organization: string,
+    aiEnrichment?: FullReportEnrichment['conclusion']
 ): { current_state: string; gaps_against_standard: string[]; risk_of_inaction: string; scalability_readiness: string } {
     const globalLevel = analysis.aggregated_results.global_maturity_level;
     const approved = findingsData.findings.filter(f => f.status === 'approved');
@@ -100,5 +102,10 @@ export function generateConclusion(
             `Se debe priorizar la maduración de procesos antes de cualquier expansión.`;
     }
 
-    return { current_state, gaps_against_standard: gaps, risk_of_inaction, scalability_readiness };
+    return {
+        current_state: aiEnrichment?.current_state || current_state,
+        gaps_against_standard: gaps,
+        risk_of_inaction: aiEnrichment?.risk_of_inaction || risk_of_inaction,
+        scalability_readiness: aiEnrichment?.scalability_readiness || scalability_readiness
+    };
 }

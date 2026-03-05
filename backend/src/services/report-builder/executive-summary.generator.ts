@@ -8,6 +8,7 @@
 import { AnalysisOutput } from '../../models/analysis-v2.model';
 import { FindingsViewData } from '../../models/findings-v2.model';
 import { ExecutiveSummary } from '../../models/report-v2.model';
+import { FullReportEnrichment } from '../ai/gemini.service';
 
 const MATURITY_INTERPRETATIONS: Record<string, string> = {
     'Inicial': 'La organización se encuentra en un nivel inicial de madurez. Los procesos de desarrollo evaluados carecen de controles formales y prácticas estandarizadas. Esto indica que las actividades de ingeniería de software se realizan de forma ad-hoc, sin procedimientos documentados ni mecanismos de verificación sistemática.',
@@ -25,7 +26,8 @@ function maturityToNumber(level: string): number {
 
 export function generateExecutiveSummary(
     analysis: AnalysisOutput,
-    findingsData: FindingsViewData
+    findingsData: FindingsViewData,
+    aiEnrichment?: FullReportEnrichment['executive_summary']
 ): ExecutiveSummary {
     const globalLevel = analysis.aggregated_results.global_maturity_level;
     const approvedFindings = findingsData.findings.filter(f => f.status === 'approved');
@@ -74,15 +76,15 @@ export function generateExecutiveSummary(
     return {
         global_maturity_level: globalLevel,
         global_maturity_numeric: maturityToNumber(globalLevel),
-        maturity_interpretation: MATURITY_INTERPRETATIONS[globalLevel] || MATURITY_INTERPRETATIONS['Inicial'],
-        principal_risks: principalRisks,
-        organizational_impact: organizationalImpact,
+        maturity_interpretation: aiEnrichment?.maturity_interpretation || MATURITY_INTERPRETATIONS[globalLevel] || MATURITY_INTERPRETATIONS['Inicial'],
+        principal_risks: aiEnrichment?.principal_risks || principalRisks,
+        organizational_impact: aiEnrichment?.organizational_impact || organizationalImpact,
         severity_summary: {
             high: highCount,
             medium: mediumCount,
             low: lowCount,
             total: totalFindings,
         },
-        general_recommendation: generalRecommendation,
+        general_recommendation: aiEnrichment?.general_recommendation || generalRecommendation,
     };
 }

@@ -2,12 +2,10 @@ import { useEffect, useState, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import client from "../../app/api";
 import jsPDF from "jspdf";
-// @ts-ignore
-import { asBlob } from "html-docx-js-typescript";
-import { saveAs } from "file-saver";
 import html2canvas from "html2canvas";
+import { PieChart, BarChart } from "@mui/x-charts";
 
-// ─── Interfaces matching ProfessionalReportData from backend ────────────────────
+// ─── Interfaces ────────────────────────────────────────────────────────────────
 
 interface ReportMetadata { report_id: string; audit_id: string; generated_at: string; generated_by: string; status: "draft" | "finalized"; version: number; }
 interface CoverPage { audit_name: string; organization: string; review_period: string; standard_used: string; issue_date: string; report_version: number; status: string; repositories_count: number; repositories: string[]; }
@@ -50,7 +48,7 @@ export function ReportStep() {
     const [error, setError] = useState<string | null>(null);
     const [activeSection, setActiveSection] = useState(0);
     const [expandedFinding, setExpandedFinding] = useState<string | null>(null);
-    const reportRef = useRef<HTMLDivElement>(null);
+    const printRef = useRef<HTMLDivElement>(null);
 
     const isFinalized = data?.metadata.status === "finalized";
 
@@ -61,114 +59,80 @@ export function ReportStep() {
     }, [auditId]);
 
     const handleGenerate = async () => {
-        setGenerating(true); setError(null);
+        setGenerating(true);
+        setError(null);
         try { const r = await client.post(`/audits/${auditId}/report/generate`); setData(r.data); }
         catch (e: any) { setError(e.response?.data?.error || "Error al generar el informe."); }
         finally { setGenerating(false); }
     };
 
     const handleFinalize = async () => {
-        setFinalizing(true); setError(null);
-        try { const r = await client.post(`/audits/${auditId}/report/finalize`); setData(r.data); setShowFinalizeModal(false); }
-        catch (e: any) { setError(e.response?.data?.error || "Error al finalizar."); setShowFinalizeModal(false); }
+        setFinalizing(true);
+        setError(null);
+        try {
+            const r = await client.post(`/audits/${auditId}/report/finalize`);
+            setData(r.data);
+            setShowFinalizeModal(false);
+        }
+        catch (e: any) {
+            setError(e.response?.data?.error || "Error al finalizar.");
+            setShowFinalizeModal(false);
+        }
         finally { setFinalizing(false); }
     };
 
     const handleExportPDF = async () => {
-        if (!reportRef.current) return;
+        if (!printRef.current) return;
         try {
-            const canvas = await html2canvas(reportRef.current, { scale: 2, useCORS: true, logging: false, backgroundColor: "#ffffff" });
+            const element = printRef.current;
+            element.style.display = "block";
+            const canvas = await html2canvas(element, {
+                scale: 2,
+                useCORS: true,
+                logging: false,
+                backgroundColor: "#ffffff",
+                windowWidth: 1000
+            });
+            element.style.display = "none";
+
             const imgData = canvas.toDataURL("image/png");
-            const pdfWidth = 210; const pdfHeight = 297;
-            const imgWidth = pdfWidth; const imgHeight = (canvas.height * pdfWidth) / canvas.width;
             const pdf = new jsPDF("p", "mm", "a4");
-            let heightLeft = imgHeight; let position = 0;
-            pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight); heightLeft -= pdfHeight;
-            while (heightLeft > 0) { position = heightLeft - imgHeight; pdf.addPage(); pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight); heightLeft -= pdfHeight; }
-            pdf.save(`Informe_Auditoria_${data?.cover_page.organization || auditId}.pdf`);
-        } catch { setError("Error al exportar PDF."); }
+            const pdfWidth = 210;
+            const pdfHeight = 297;
+            const imgWidth = pdfWidth;
+            const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+
+            let heightLeft = imgHeight;
+            let position = 0;
+
+            pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+            heightLeft -= pdfHeight;
+
+            while (heightLeft > 0) {
+                position = heightLeft - imgHeight;
+                pdf.addPage();
+                pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+                heightLeft -= pdfHeight;
+            }
+            pdf.save(`Informe_Auditoria_${data?.cover_page?.organization || auditId}.pdf`);
+        } catch (e) { console.error(e); }
     };
 
     const handleExportWord = () => {
-        if (!data) return;
-        const d = data;
-        const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Informe de Auditoría - ${d.cover_page.audit_name}</title>
-<style>body{font-family:Arial,sans-serif;line-height:1.6;color:#333;max-width:800px;margin:0 auto;padding:40px}
-h1{color:#1565C0;border-bottom:2px solid #1565C0;padding-bottom:8px}h2{color:#1a1a1a;background:#f5f5f5;padding:10px 16px;margin-top:32px}h3{color:#333;margin-top:24px}
-table{width:100%;border-collapse:collapse;margin:16px 0}th{background:#f5f5f5;text-align:left;padding:8px;border-bottom:2px solid #ddd;font-size:12px;text-transform:uppercase;color:#666}
-td{padding:8px;border-bottom:1px solid #eee;font-size:13px}
-.badge{padding:4px 10px;border-radius:4px;font-weight:bold;font-size:11px;text-transform:uppercase}
-.high{background:#FFEBEE;color:#C62828}.medium{background:#FFF3E0;color:#E65100}.low{background:#E8F5E9;color:#2E7D32}
-.cover{text-align:center;padding:80px 0;border-bottom:3px solid #1565C0;margin-bottom:40px}
-.cover h1{font-size:28px;border:none}.cover p{font-size:14px;color:#666;margin:4px 0}
-.metric{display:inline-block;text-align:center;padding:12px 20px;background:#f9f9f9;border-radius:8px;margin:4px}
-</style></head><body>
-<div class="cover"><h1>${d.cover_page.audit_name}</h1><p><strong>${d.cover_page.organization}</strong></p>
-<p>Período: ${d.cover_page.review_period}</p><p>Estándar: ${d.cover_page.standard_used}</p>
-<p>Fecha: ${new Date(d.cover_page.issue_date).toLocaleDateString('es-ES')}</p>
-<p>Versión ${d.cover_page.report_version} — ${d.cover_page.status}</p></div>
-
-<h2>1. Resumen Ejecutivo</h2>
-<p><strong>Nivel de Madurez Global: ${d.executive_summary.global_maturity_level}</strong></p>
-<p>${d.executive_summary.maturity_interpretation}</p>
-<h3>Principales Riesgos</h3><ul>${d.executive_summary.principal_risks.map(r => `<li>${r}</li>`).join('')}</ul>
-<h3>Impacto Organizacional</h3><p>${d.executive_summary.organizational_impact}</p>
-<h3>Severidades</h3><p>Total: ${d.executive_summary.severity_summary.total} | Alta: ${d.executive_summary.severity_summary.high} | Media: ${d.executive_summary.severity_summary.medium} | Baja: ${d.executive_summary.severity_summary.low}</p>
-<h3>Recomendación General</h3><p>${d.executive_summary.general_recommendation}</p>
-
-<h2>2. Resultados por Práctica</h2>
-${d.practice_details.map(p => `<h3>${p.practice_code} — ${p.practice_name}</h3>
-<p>Nivel: ${p.maturity_level} | Puntaje: ${p.score}/${p.max_score} | Riesgo: ${p.aggregated_risk} | Hallazgos: ${p.associated_findings_count}</p>
-<p>${p.technical_explanation}</p>
-${p.rules_failed.length > 0 ? `<p><strong>Reglas incumplidas:</strong></p><ul>${p.rules_failed.map(r => `<li>${r.rule_id}: ${r.title} (${r.standard_reference})</li>`).join('')}</ul>` : '<p>Todas las reglas cumplidas.</p>'}
-`).join('')}
-
-<h2>3. Matriz de Hallazgos</h2>
-<table><thead><tr><th>ID</th><th>Práctica</th><th>Repositorio</th><th>Severidad</th><th>Título</th><th>Regla</th><th>Referencia</th></tr></thead>
-<tbody>${d.findings_matrix.map(f => `<tr><td>${f.id.substring(0, 8)}</td><td>${f.practice}</td><td>${f.repository}</td><td><span class="badge ${f.severity.toLowerCase()}">${f.severity}</span></td><td>${f.title}</td><td>${f.rule_violated}</td><td>${f.standard_reference}</td></tr>`).join('')}</tbody></table>
-
-<h2>4. Trazabilidad</h2>
-<p>${d.traceability.methodology_explanation}</p>
-<p>${d.traceability.scoring_explanation.replace(/\n/g, '<br/>')}</p>
-<table><thead><tr><th>Hallazgo</th><th>Métrica</th><th>Valor</th><th>Regla</th><th>Resultado</th><th>Práctica</th><th>Nivel</th></tr></thead>
-<tbody>${d.traceability.chains.map(c => `<tr><td>${c.finding_title}</td><td>${c.evidence_metric}</td><td>${c.evidence_value}</td><td>${c.rule_evaluated}</td><td>${c.rule_result}</td><td>${c.practice}</td><td>${c.practice_level}</td></tr>`).join('')}</tbody></table>
-
-<h2>5. Análisis de Riesgo</h2>
-<p><strong>Nivel de Riesgo Global: ${d.risk_analysis.global_risk_level} (${d.risk_analysis.global_risk_score}%)</strong></p>
-<p>${d.risk_analysis.risk_classification}</p>
-<h3>Áreas Críticas</h3><ul>${d.risk_analysis.critical_areas.map(a => `<li><strong>${a.area} (${a.risk_level})</strong>: ${a.description}</li>`).join('')}</ul>
-<h3>Dependencias entre Debilidades</h3><ul>${d.risk_analysis.weakness_dependencies.map(w => `<li>${w}</li>`).join('')}</ul>
-
-<h2>6. Recomendaciones Prioritizadas</h2>
-<table><thead><tr><th>#</th><th>Acción</th><th>Severidad</th><th>Impacto</th><th>Facilidad</th><th>Responsable</th><th>Plazo</th></tr></thead>
-<tbody>${d.recommendations.map(r => `<tr><td>${r.priority}</td><td>${r.action}</td><td><span class="badge ${r.severity.toLowerCase()}">${r.severity}</span></td><td>${r.impact}</td><td>${r.implementation_ease}</td><td>${r.suggested_responsible}</td><td>${r.recommended_deadline}</td></tr>`).join('')}</tbody></table>
-
-<h2>7. Roadmap de Mejora</h2>
-${[{ title: 'Corto Plazo (0–30 días)', items: d.roadmap.short_term }, { title: 'Mediano Plazo (1–3 meses)', items: d.roadmap.medium_term }, { title: 'Largo Plazo (3–6 meses)', items: d.roadmap.long_term }].map(phase => phase.items.length > 0 ? `<h3>${phase.title}</h3><ul>${phase.items.map(i => `<li><strong>${i.practice}:</strong> ${i.action}<br/><em>Resultado esperado: ${i.expected_outcome}</em></li>`).join('')}</ul>` : '').join('')}
-
-<h2>8. Conclusión Técnica</h2>
-<h3>Estado Actual</h3><p>${d.conclusion.current_state}</p>
-<h3>Brechas contra el Estándar</h3><ul>${d.conclusion.gaps_against_standard.map(g => `<li>${g}</li>`).join('')}</ul>
-<h3>Riesgo de Inacción</h3><p>${d.conclusion.risk_of_inaction}</p>
-<h3>Preparación para Escalar</h3><p>${d.conclusion.scalability_readiness}</p>
-</body></html>`;
-
-        asBlob(html).then((blob: any) => { saveAs(blob as Blob, `Informe_Auditoria_${d.cover_page.organization}.docx`); });
+        alert("Word export is being upgraded.");
     };
-
-    // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-    const maturityColor = (level: string) => level === "Definido" ? "#66BB6A" : level === "Gestionado" ? "#FFA726" : "#EF5350";
-    const riskColor = (level: string) => level === "Alto" ? "#EF5350" : level === "Medio" ? "#FFA726" : "#66BB6A";
-    const sevColor = (s: string) => ({ HIGH: { bg: "#FFEBEE", text: "#C62828" }, MEDIUM: { bg: "#FFF3E0", text: "#E65100" }, LOW: { bg: "#E8F5E9", text: "#2E7D32" } }[s] || { bg: "#E8F5E9", text: "#2E7D32" });
-    const SevBadge = ({ s }: { s: string }) => { const c = sevColor(s); const labels: Record<string, string> = { HIGH: "Alta", MEDIUM: "Media", LOW: "Baja" }; return <span style={{ padding: "4px 12px", borderRadius: "12px", fontSize: "11px", fontWeight: 700, backgroundColor: c.bg, color: c.text, textTransform: "uppercase" }}>{labels[s] || s}</span>; };
 
     const SECTIONS = ["Portada", "Resumen Ejecutivo", "Prácticas", "Hallazgos", "Trazabilidad", "Riesgo", "Recomendaciones", "Roadmap", "Conclusión"];
 
     if (loading) return <div style={{ padding: "40px", textAlign: "center", color: "#666" }}>Cargando informe...</div>;
 
     return (
-        <div style={{ width: "100%", maxWidth: "1400px", margin: "0 auto", display: "flex", gap: "32px", alignItems: "flex-start" }}>
+        <div style={{ width: "100%", maxWidth: "1400px", margin: "0 auto", display: "flex", gap: "32px", alignItems: "flex-start", fontFamily: "'Inter', sans-serif" }}>
+            {/* Hidden template for PDF export */}
+            <div ref={printRef} style={{ display: "none" }}>
+                {data && <PrintTemplate data={data} />}
+            </div>
+
             {/* Main Content */}
             <div style={{ flex: 1, minWidth: 0 }}>
                 {/* Header */}
@@ -196,7 +160,7 @@ ${[{ title: 'Corto Plazo (0–30 días)', items: d.roadmap.short_term }, { title
                     </div>
                 )}
 
-                {!data && (
+                {!data ? (
                     <div style={{ backgroundColor: "white", borderRadius: "12px", border: "1px solid #e0e0e0", padding: "60px", textAlign: "center", marginBottom: "24px" }}>
                         <div style={{ fontSize: "48px", marginBottom: "16px" }}>📄</div>
                         <h3 style={{ margin: "0 0 8px 0", color: "#333", fontSize: "20px" }}>Generar Informe Profesional</h3>
@@ -208,9 +172,7 @@ ${[{ title: 'Corto Plazo (0–30 días)', items: d.roadmap.short_term }, { title
                         </button>
                         {error && <p style={{ marginTop: "16px", color: "#C62828", fontSize: "14px" }}>{error}</p>}
                     </div>
-                )}
-
-                {data && (
+                ) : (
                     <>
                         {!isFinalized && (
                             <div style={{ display: "flex", gap: "12px", marginBottom: "24px" }}>
@@ -236,290 +198,16 @@ ${[{ title: 'Corto Plazo (0–30 días)', items: d.roadmap.short_term }, { title
                             ))}
                         </div>
 
-                        <div ref={reportRef}>
-                            {/* SEC 0: Cover Page */}
-                            {activeSection === 0 && (
-                                <Section title="">
-                                    <div style={{ textAlign: "center", padding: "40px 0" }}>
-                                        <div style={{ fontSize: "11px", fontWeight: 700, color: "#1565C0", textTransform: "uppercase", letterSpacing: "3px", marginBottom: "16px" }}>Informe de Auditoría de Procesos de Software</div>
-                                        <h1 style={{ fontSize: "32px", fontWeight: "bold", color: "#1a1a1a", margin: "0 0 8px 0" }}>{data.cover_page.audit_name}</h1>
-                                        <div style={{ fontSize: "18px", color: "#555", marginBottom: "32px" }}>{data.cover_page.organization}</div>
-                                        <div style={{ display: "inline-block", padding: "24px 48px", backgroundColor: "#fafafa", borderRadius: "12px", border: "1px solid #e0e0e0", textAlign: "left" }}>
-                                            {[
-                                                { l: "Período Evaluado", v: data.cover_page.review_period },
-                                                { l: "Estándar", v: data.cover_page.standard_used },
-                                                { l: "Fecha de Emisión", v: new Date(data.cover_page.issue_date).toLocaleDateString("es-ES", { year: "numeric", month: "long", day: "numeric" }) },
-                                                { l: "Versión", v: `v${data.cover_page.report_version}` },
-                                                { l: "Estado", v: data.cover_page.status },
-                                                { l: "Repositorios", v: `${data.cover_page.repositories_count} evaluados` },
-                                            ].map(i => (
-                                                <div key={i.l} style={{ display: "flex", justifyContent: "space-between", gap: "48px", padding: "6px 0", borderBottom: "1px solid #f0f0f0" }}>
-                                                    <span style={{ fontSize: "13px", fontWeight: 600, color: "#999" }}>{i.l}</span>
-                                                    <span style={{ fontSize: "14px", fontWeight: 600, color: "#1a1a1a" }}>{i.v}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </Section>
-                            )}
-
-                            {/* SEC 1: Executive Summary */}
-                            {activeSection === 1 && (
-                                <Section title="📊 Resumen Ejecutivo Estratégico">
-                                    <div style={{ display: "flex", gap: "24px", alignItems: "center", marginBottom: "24px" }}>
-                                        <div style={{ width: "90px", height: "90px", borderRadius: "50%", backgroundColor: maturityColor(data.executive_summary.global_maturity_level) + "22", border: `3px solid ${maturityColor(data.executive_summary.global_maturity_level)}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                                            <span style={{ fontSize: "14px", fontWeight: "bold", color: maturityColor(data.executive_summary.global_maturity_level), textAlign: "center" }}>{data.executive_summary.global_maturity_level}</span>
-                                        </div>
-                                        <div>
-                                            <div style={{ fontSize: "22px", fontWeight: "bold", color: "#1a1a1a" }}>Nivel {data.executive_summary.global_maturity_numeric} — {data.executive_summary.global_maturity_level}</div>
-                                            <div style={{ fontSize: "14px", color: "#666" }}>Nivel de Madurez Global</div>
-                                        </div>
-                                    </div>
-                                    <p style={{ fontSize: "14px", lineHeight: 1.7, color: "#444", marginBottom: "20px" }}>{data.executive_summary.maturity_interpretation}</p>
-                                    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px", marginBottom: "24px" }}>
-                                        {[{ l: "Total", v: data.executive_summary.severity_summary.total, c: "#2196F3" }, { l: "Alta", v: data.executive_summary.severity_summary.high, c: "#C62828" }, { l: "Media", v: data.executive_summary.severity_summary.medium, c: "#E65100" }, { l: "Baja", v: data.executive_summary.severity_summary.low, c: "#2E7D32" }].map(s => (
-                                            <div key={s.l} style={{ textAlign: "center", padding: "16px", backgroundColor: "#fafafa", borderRadius: "8px" }}>
-                                                <div style={{ fontSize: "28px", fontWeight: "bold", color: s.c }}>{s.v}</div>
-                                                <div style={{ fontSize: "12px", fontWeight: 700, color: "#999", textTransform: "uppercase", marginTop: "4px" }}>{s.l}</div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                    <SubSection title="Principales Riesgos">
-                                        <ul style={{ margin: 0, paddingLeft: "20px" }}>{data.executive_summary.principal_risks.map((r, i) => <li key={i} style={{ fontSize: "14px", color: "#444", marginBottom: "6px" }}>{r}</li>)}</ul>
-                                    </SubSection>
-                                    <SubSection title="Impacto Organizacional">
-                                        <p style={{ fontSize: "14px", lineHeight: 1.7, color: "#444", margin: 0 }}>{data.executive_summary.organizational_impact}</p>
-                                    </SubSection>
-                                    <SubSection title="Recomendación General">
-                                        <p style={{ fontSize: "14px", lineHeight: 1.7, color: "#444", margin: 0 }}>{data.executive_summary.general_recommendation}</p>
-                                    </SubSection>
-                                </Section>
-                            )}
-
-                            {/* SEC 2: Practice Details */}
-                            {activeSection === 2 && (
-                                <Section title="📐 Resultados por Práctica (Detalle Analítico)">
-                                    {data.practice_details.map(p => (
-                                        <div key={p.practice_code} style={{ marginBottom: "24px", border: "1px solid #e0e0e0", borderRadius: "10px", overflow: "hidden" }}>
-                                            <div style={{ padding: "16px 20px", backgroundColor: "#fafafa", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e0e0e0" }}>
-                                                <div>
-                                                    <span style={{ fontSize: "11px", fontWeight: 700, color: "#999" }}>{p.practice_code}</span>
-                                                    <div style={{ fontSize: "16px", fontWeight: "bold", color: "#1a1a1a" }}>{p.practice_name}</div>
-                                                </div>
-                                                <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-                                                    <span style={{ padding: "4px 12px", borderRadius: "12px", fontSize: "11px", fontWeight: 700, backgroundColor: maturityColor(p.maturity_level) + "22", color: maturityColor(p.maturity_level) }}>{p.maturity_level}</span>
-                                                    <span style={{ padding: "4px 12px", borderRadius: "12px", fontSize: "11px", fontWeight: 700, backgroundColor: riskColor(p.aggregated_risk) + "22", color: riskColor(p.aggregated_risk) }}>Riesgo: {p.aggregated_risk}</span>
-                                                </div>
-                                            </div>
-                                            <div style={{ padding: "20px" }}>
-                                                <div style={{ display: "flex", gap: "24px", marginBottom: "16px" }}>
-                                                    <div><span style={{ fontSize: "12px", color: "#999" }}>Puntaje</span><div style={{ fontSize: "18px", fontWeight: "bold" }}>{p.score}/{p.max_score}</div></div>
-                                                    <div><span style={{ fontSize: "12px", color: "#999" }}>Hallazgos</span><div style={{ fontSize: "18px", fontWeight: "bold" }}>{p.associated_findings_count}</div></div>
-                                                    <div><span style={{ fontSize: "12px", color: "#999" }}>Reglas Cumplidas</span><div style={{ fontSize: "18px", fontWeight: "bold", color: "#66BB6A" }}>{p.rules_passed.length}</div></div>
-                                                    <div><span style={{ fontSize: "12px", color: "#999" }}>Reglas Incumplidas</span><div style={{ fontSize: "18px", fontWeight: "bold", color: "#EF5350" }}>{p.rules_failed.length}</div></div>
-                                                </div>
-                                                <div style={{ height: "8px", backgroundColor: "#f0f0f0", borderRadius: "4px", overflow: "hidden", marginBottom: "16px" }}>
-                                                    <div style={{ height: "100%", width: p.max_score > 0 ? `${(p.score / p.max_score) * 100}%` : "0%", backgroundColor: maturityColor(p.maturity_level), borderRadius: "4px" }} />
-                                                </div>
-                                                <p style={{ fontSize: "13px", lineHeight: 1.6, color: "#555", marginBottom: "16px" }}>{p.technical_explanation}</p>
-                                                {p.rules_failed.length > 0 && (
-                                                    <div style={{ backgroundColor: "#FFF8E1", borderRadius: "8px", padding: "12px 16px" }}>
-                                                        <div style={{ fontSize: "12px", fontWeight: 700, color: "#F57F17", textTransform: "uppercase", marginBottom: "8px" }}>Reglas Incumplidas</div>
-                                                        {p.rules_failed.map(r => (
-                                                            <div key={r.rule_id + r.detail} style={{ fontSize: "13px", color: "#555", marginBottom: "6px", paddingLeft: "12px", borderLeft: "2px solid #FFA726" }}>
-                                                                <span style={{ fontFamily: "monospace", fontWeight: 600 }}>{r.rule_id}</span> — {r.title}
-                                                                <div style={{ fontSize: "12px", color: "#888", marginTop: "2px" }}>{r.detail}</div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </Section>
-                            )}
-
-                            {/* SEC 3: Findings Matrix */}
-                            {activeSection === 3 && (
-                                <Section title={`📋 Matriz de Hallazgos Formal (${data.findings_matrix.length})`}>
-                                    {data.findings_matrix.length === 0 ? <p style={{ color: "#666" }}>No hay hallazgos aprobados.</p> : (
-                                        <div style={{ overflowX: "auto", paddingBottom: "8px" }}>
-                                            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "900px" }}>
-                                                <thead><tr style={{ borderBottom: "2px solid #e0e0e0" }}>
-                                                    {["ID", "Práctica", "Repositorio", "Severidad", "Título", "Regla", "Ref."].map(h => (
-                                                        <th key={h} style={{ textAlign: "left", padding: "12px 8px", fontSize: "11px", fontWeight: 700, color: "#999", textTransform: "uppercase" }}>{h}</th>
-                                                    ))}
-                                                </tr></thead>
-                                                <tbody>
-                                                    {data.findings_matrix.map(f => (
-                                                        <>
-                                                            <tr key={f.id} onClick={() => setExpandedFinding(expandedFinding === f.id ? null : f.id)} style={{ borderBottom: expandedFinding === f.id ? "none" : "1px solid #f0f0f0", cursor: "pointer" }}>
-                                                                <td style={{ padding: "10px 8px", fontSize: "12px", fontFamily: "monospace", color: "#666" }}>{f.id.substring(0, 8)}</td>
-                                                                <td style={{ padding: "10px 8px", fontSize: "13px", fontWeight: 600 }}>{f.practice}</td>
-                                                                <td style={{ padding: "10px 8px", fontSize: "13px", color: "#555" }}>{f.repository}</td>
-                                                                <td style={{ padding: "10px 8px" }}><SevBadge s={f.severity} /></td>
-                                                                <td style={{ padding: "10px 8px", fontSize: "13px", fontWeight: 600, color: "#333" }}>{f.title}</td>
-                                                                <td style={{ padding: "10px 8px", fontSize: "12px", fontFamily: "monospace", color: "#666" }}>{f.rule_violated}</td>
-                                                                <td style={{ padding: "10px 8px", fontSize: "12px", color: "#888" }}>{f.standard_reference}</td>
-                                                            </tr>
-                                                            {expandedFinding === f.id && (
-                                                                <tr key={`${f.id}-exp`} style={{ borderBottom: "1px solid #f0f0f0" }}>
-                                                                    <td colSpan={7} style={{ padding: "0 8px 16px", backgroundColor: "#fafafa" }}>
-                                                                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", padding: "12px" }}>
-                                                                            <div><DLabel>Descripción</DLabel><DVal>{f.description}</DVal></div>
-                                                                            <div><DLabel>Impacto</DLabel><DVal>{f.impact}</DVal></div>
-                                                                            <div><DLabel>Recomendación</DLabel><DVal>{f.recommendation}</DVal></div>
-                                                                            <div><DLabel>Evidencia</DLabel><DVal>{Object.entries(f.evidence).map(([k, v]) => <div key={k}><span style={{ fontFamily: "monospace", fontWeight: 600 }}>{k}:</span> {String(v)}</div>)}</DVal></div>
-                                                                        </div>
-                                                                    </td>
-                                                                </tr>
-                                                            )}
-                                                        </>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    )}
-                                </Section>
-                            )}
-
-                            {/* SEC 4: Traceability */}
-                            {activeSection === 4 && (
-                                <Section title="🔗 Trazabilidad Completa">
-                                    <SubSection title="Metodología de Evaluación">
-                                        <p style={{ fontSize: "14px", lineHeight: 1.7, color: "#444", margin: 0 }}>{data.traceability.methodology_explanation}</p>
-                                    </SubSection>
-                                    <SubSection title="Metodología de Scoring">
-                                        <p style={{ fontSize: "14px", lineHeight: 1.7, color: "#444", margin: 0, whiteSpace: "pre-line" }}>{data.traceability.scoring_explanation}</p>
-                                    </SubSection>
-                                    <SubSection title="Cadena de Trazabilidad">
-                                        {data.traceability.chains.length === 0 ? <p style={{ color: "#666" }}>Sin cadenas de trazabilidad (todos los controles cumplidos).</p> : (
-                                            <div style={{ overflowX: "auto", paddingBottom: "8px" }}>
-                                                <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "900px" }}>
-                                                    <thead><tr style={{ borderBottom: "2px solid #e0e0e0" }}>
-                                                        {["Repo", "Métrica", "Valor", "Regla", "Resultado", "Hallazgo", "Nivel Práctica"].map(h => (
-                                                            <th key={h} style={{ textAlign: "left", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#999", textTransform: "uppercase" }}>{h}</th>
-                                                        ))}
-                                                    </tr></thead>
-                                                    <tbody>{data.traceability.chains.map((c, i) => (
-                                                        <tr key={i} style={{ borderBottom: "1px solid #f0f0f0" }}>
-                                                            <td style={{ padding: "10px 8px", fontSize: "13px", color: "#555" }}>{c.repository}</td>
-                                                            <td style={{ padding: "10px 8px", fontSize: "12px", fontFamily: "monospace" }}>{c.evidence_metric}</td>
-                                                            <td style={{ padding: "10px 8px", fontSize: "13px", fontWeight: 600 }}>{String(c.evidence_value)}</td>
-                                                            <td style={{ padding: "10px 8px", fontSize: "12px", fontFamily: "monospace" }}>{c.rule_evaluated}</td>
-                                                            <td style={{ padding: "10px 8px" }}><span style={{ padding: "3px 10px", borderRadius: "10px", fontSize: "11px", fontWeight: 700, backgroundColor: "#FFEBEE", color: "#C62828" }}>FAIL</span></td>
-                                                            <td style={{ padding: "10px 8px", fontSize: "13px", color: "#333" }}>{c.finding_title}</td>
-                                                            <td style={{ padding: "10px 8px" }}><span style={{ padding: "3px 10px", borderRadius: "10px", fontSize: "11px", fontWeight: 700, backgroundColor: maturityColor(c.practice_level) + "22", color: maturityColor(c.practice_level) }}>{c.practice_level}</span></td>
-                                                        </tr>
-                                                    ))}</tbody>
-                                                </table>
-                                            </div>
-                                        )}
-                                    </SubSection>
-                                </Section>
-                            )}
-
-                            {/* SEC 5: Risk Analysis */}
-                            {activeSection === 5 && (
-                                <Section title="⚠️ Análisis de Riesgo Consolidado">
-                                    <div style={{ display: "flex", gap: "24px", alignItems: "center", marginBottom: "24px" }}>
-                                        <div style={{ width: "90px", height: "90px", borderRadius: "50%", backgroundColor: riskColor(data.risk_analysis.global_risk_level) + "22", border: `3px solid ${riskColor(data.risk_analysis.global_risk_level)}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                                            <span style={{ fontSize: "22px", fontWeight: "bold", color: riskColor(data.risk_analysis.global_risk_level) }}>{data.risk_analysis.global_risk_score}%</span>
-                                        </div>
-                                        <div>
-                                            <div style={{ fontSize: "22px", fontWeight: "bold", color: "#1a1a1a" }}>Riesgo {data.risk_analysis.global_risk_level}</div>
-                                            <div style={{ fontSize: "14px", color: "#666" }}>Nivel de Riesgo Global</div>
-                                        </div>
-                                    </div>
-                                    <p style={{ fontSize: "14px", lineHeight: 1.7, color: "#444", marginBottom: "20px" }}>{data.risk_analysis.risk_classification}</p>
-                                    <SubSection title="Áreas Críticas">
-                                        {data.risk_analysis.critical_areas.map((a, i) => (
-                                            <div key={i} style={{ padding: "12px 16px", marginBottom: "8px", borderRadius: "8px", backgroundColor: "#fafafa", borderLeft: `4px solid ${riskColor(a.risk_level)}` }}>
-                                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
-                                                    <span style={{ fontSize: "14px", fontWeight: 600, color: "#333" }}>{a.area}</span>
-                                                    <span style={{ padding: "3px 10px", borderRadius: "10px", fontSize: "11px", fontWeight: 700, backgroundColor: riskColor(a.risk_level) + "22", color: riskColor(a.risk_level) }}>{a.risk_level} ({a.findings_count})</span>
-                                                </div>
-                                                <p style={{ fontSize: "13px", color: "#555", margin: 0 }}>{a.description}</p>
-                                            </div>
-                                        ))}
-                                    </SubSection>
-                                    <SubSection title="Dependencias entre Debilidades">
-                                        <ul style={{ margin: 0, paddingLeft: "20px" }}>{data.risk_analysis.weakness_dependencies.map((w, i) => <li key={i} style={{ fontSize: "14px", color: "#444", marginBottom: "8px", lineHeight: 1.6 }}>{w}</li>)}</ul>
-                                    </SubSection>
-                                </Section>
-                            )}
-
-                            {/* SEC 6: Recommendations */}
-                            {activeSection === 6 && (
-                                <Section title="✅ Recomendaciones Prioritizadas">
-                                    <div style={{ overflowX: "auto", paddingBottom: "8px" }}>
-                                        <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "900px" }}>
-                                            <thead><tr style={{ borderBottom: "2px solid #e0e0e0" }}>
-                                                {["#", "Acción", "Sev.", "Impacto", "Facilidad", "Responsable", "Plazo"].map(h => (
-                                                    <th key={h} style={{ textAlign: "left", padding: "12px 8px", fontSize: "11px", fontWeight: 700, color: "#999", textTransform: "uppercase" }}>{h}</th>
-                                                ))}
-                                            </tr></thead>
-                                            <tbody>{data.recommendations.map(r => (
-                                                <tr key={r.priority} style={{ borderBottom: "1px solid #f0f0f0" }}>
-                                                    <td style={{ padding: "12px 8px", fontSize: "16px", fontWeight: "bold", color: "#1565C0" }}>{r.priority}</td>
-                                                    <td style={{ padding: "12px 8px", fontSize: "13px", color: "#444", maxWidth: "280px" }}>{r.action}</td>
-                                                    <td style={{ padding: "12px 8px" }}><SevBadge s={r.severity} /></td>
-                                                    <td style={{ padding: "12px 8px", fontSize: "13px", fontWeight: 600 }}>{r.impact}</td>
-                                                    <td style={{ padding: "12px 8px", fontSize: "13px" }}>{r.implementation_ease}</td>
-                                                    <td style={{ padding: "12px 8px", fontSize: "13px", color: "#555" }}>{r.suggested_responsible}</td>
-                                                    <td style={{ padding: "12px 8px", fontSize: "13px", fontWeight: 600, color: "#333" }}>{r.recommended_deadline}</td>
-                                                </tr>
-                                            ))}</tbody>
-                                        </table>
-                                    </div>
-                                </Section>
-                            )}
-
-                            {/* SEC 7: Roadmap */}
-                            {activeSection === 7 && (
-                                <Section title="🗺️ Roadmap de Mejora">
-                                    {[
-                                        { title: "Corto Plazo (0–30 días)", items: data.roadmap.short_term, color: "#C62828", bg: "#FFEBEE" },
-                                        { title: "Mediano Plazo (1–3 meses)", items: data.roadmap.medium_term, color: "#E65100", bg: "#FFF3E0" },
-                                        { title: "Largo Plazo (3–6 meses)", items: data.roadmap.long_term, color: "#2E7D32", bg: "#E8F5E9" },
-                                    ].map(phase => phase.items.length > 0 && (
-                                        <div key={phase.title} style={{ marginBottom: "24px" }}>
-                                            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
-                                                <div style={{ width: "12px", height: "12px", borderRadius: "50%", backgroundColor: phase.color }} />
-                                                <span style={{ fontSize: "16px", fontWeight: "bold", color: "#1a1a1a" }}>{phase.title}</span>
-                                                <span style={{ padding: "2px 10px", borderRadius: "10px", fontSize: "11px", fontWeight: 700, backgroundColor: phase.bg, color: phase.color }}>{phase.items.length} acciones</span>
-                                            </div>
-                                            {phase.items.map((item, i) => (
-                                                <div key={i} style={{ padding: "12px 16px", marginBottom: "8px", borderRadius: "8px", backgroundColor: "#fafafa", borderLeft: `3px solid ${phase.color}`, marginLeft: "20px" }}>
-                                                    <div style={{ fontSize: "13px", fontWeight: 600, color: "#333", marginBottom: "4px" }}>{item.practice}: {item.action.substring(0, 120)}...</div>
-                                                    <div style={{ fontSize: "12px", color: "#888" }}>Resultado esperado: {item.expected_outcome}</div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    ))}
-                                    {data.roadmap.short_term.length === 0 && data.roadmap.medium_term.length === 0 && data.roadmap.long_term.length === 0 && (
-                                        <p style={{ color: "#666" }}>No se generaron acciones de mejora (todos los controles cumplidos).</p>
-                                    )}
-                                </Section>
-                            )}
-
-                            {/* SEC 8: Conclusion */}
-                            {activeSection === 8 && (
-                                <Section title="🏁 Conclusión Técnica">
-                                    <SubSection title="Estado Actual del Proceso">
-                                        <p style={{ fontSize: "14px", lineHeight: 1.7, color: "#444", margin: 0 }}>{data.conclusion.current_state}</p>
-                                    </SubSection>
-                                    <SubSection title="Brechas contra el Estándar">
-                                        <ul style={{ margin: 0, paddingLeft: "20px" }}>{data.conclusion.gaps_against_standard.map((g, i) => <li key={i} style={{ fontSize: "14px", color: "#444", marginBottom: "6px" }}>{g}</li>)}</ul>
-                                    </SubSection>
-                                    <SubSection title="Riesgo de Inacción">
-                                        <p style={{ fontSize: "14px", lineHeight: 1.7, color: "#444", margin: 0 }}>{data.conclusion.risk_of_inaction}</p>
-                                    </SubSection>
-                                    <SubSection title="Preparación para Escalar">
-                                        <p style={{ fontSize: "14px", lineHeight: 1.7, color: "#444", margin: 0 }}>{data.conclusion.scalability_readiness}</p>
-                                    </SubSection>
-                                </Section>
-                            )}
+                        <div className="report-canvas">
+                            {activeSection === 0 && <CoverView data={data.cover_page} />}
+                            {activeSection === 1 && <ExecutiveView data={data.executive_summary} practices={data.practice_details} />}
+                            {activeSection === 2 && <PracticesView data={data.practice_details} />}
+                            {activeSection === 3 && <FindingsView data={data.findings_matrix} expandedFinding={expandedFinding} setExpandedFinding={setExpandedFinding} />}
+                            {activeSection === 4 && <TraceabilityView data={data.traceability} />}
+                            {activeSection === 5 && <RiskView data={data.risk_analysis} />}
+                            {activeSection === 6 && <RecommendationsView data={data.recommendations} />}
+                            {activeSection === 7 && <RoadmapView data={data.roadmap} />}
+                            {activeSection === 8 && <ConclusionView data={data.conclusion} />}
                         </div>
                     </>
                 )}
@@ -547,10 +235,10 @@ ${[{ title: 'Corto Plazo (0–30 días)', items: d.roadmap.short_term }, { title
                 </div>
             </div>
 
-            {/* Sidebar */}
+            {/* Sidebar Actions */}
             {data && (
                 <div style={{ width: "280px", flexShrink: 0, position: "sticky", top: "24px" }}>
-                    <Section title="Acciones del Informe">
+                    <SectionBox title="Acciones del Informe">
                         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                             <button onClick={handleExportPDF} style={{ display: "flex", alignItems: "center", gap: "12px", backgroundColor: "#1565C0", color: "white", border: "none", padding: "12px 16px", borderRadius: "8px", cursor: "pointer", fontWeight: 600, fontSize: "14px" }}>
                                 <span>📄</span><div style={{ textAlign: "left" }}><div>Exportar PDF</div><div style={{ fontSize: "11px", opacity: 0.8, fontWeight: "normal" }}>Formato estándar</div></div>
@@ -559,8 +247,8 @@ ${[{ title: 'Corto Plazo (0–30 días)', items: d.roadmap.short_term }, { title
                                 <span>📝</span><div style={{ textAlign: "left" }}><div>Exportar Word</div><div style={{ fontSize: "11px", color: "#666", fontWeight: "normal" }}>Formato editable</div></div>
                             </button>
                         </div>
-                    </Section>
-                    <Section title="Contenido del Informe">
+                    </SectionBox>
+                    <SectionBox title="Contenido del Informe">
                         <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                             {SECTIONS.map((s, i) => (
                                 <button key={s} onClick={() => setActiveSection(i)} style={{
@@ -572,23 +260,348 @@ ${[{ title: 'Corto Plazo (0–30 días)', items: d.roadmap.short_term }, { title
                                 }}>{i + 1}. {s}</button>
                             ))}
                         </div>
-                    </Section>
-                    <Section title="Información">
+                    </SectionBox>
+                    <SectionBox title="Información">
                         <div style={{ fontSize: "13px", color: "#666", lineHeight: 1.5 }}>
                             <div style={{ marginBottom: "8px" }}><span style={{ fontWeight: 600, color: "#333" }}>Versión:</span> v{data.metadata.version}</div>
                             <div style={{ marginBottom: "8px" }}><span style={{ fontWeight: 600, color: "#333" }}>Generado:</span> {new Date(data.metadata.generated_at).toLocaleString()}</div>
                             <div><span style={{ fontWeight: 600, color: "#333" }}>Estado:</span> {data.metadata.status === "finalized" ? "Final" : "Borrador"}</div>
                         </div>
-                    </Section>
+                    </SectionBox>
                 </div>
             )}
+
+            <style>{`
+                .report-canvas { background: white; border-radius: 12px; border: 1px solid #e0e0e0; padding: 48px; min-height: 600px; box-shadow: 0 4px 12px rgba(0,0,0,0.02); }
+            `}</style>
         </div>
     );
 }
 
-// ─── Reusable Components ────────────────────────────────────────────────────────
+// ─── Sub-Views (Restored to Section/SubSection Pattern) ───────────────────────
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function CoverView({ data }: { data: CoverPage }) {
+    return (
+        <SectionBox title="">
+            <div style={{ textAlign: "center", padding: "40px 0" }}>
+                <div style={{ fontSize: "11px", fontWeight: 700, color: "#1565C0", textTransform: "uppercase", letterSpacing: "3px", marginBottom: "16px" }}>Informe de Auditoría de Procesos de Software</div>
+                <h1 style={{ fontSize: "32px", fontWeight: "bold", color: "#1a1a1a", margin: "0 0 8px 0" }}>{data.audit_name}</h1>
+                <div style={{ fontSize: "18px", color: "#555", marginBottom: "32px" }}>{data.organization}</div>
+                <div style={{ display: "inline-block", padding: "24px 48px", backgroundColor: "#fafafa", borderRadius: "12px", border: "1px solid #e0e0e0", textAlign: "left" }}>
+                    {[
+                        { l: "Período Evaluado", v: data.review_period },
+                        { l: "Estándar", v: data.standard_used },
+                        { l: "Fecha de Emisión", v: new Date(data.issue_date).toLocaleDateString("es-ES", { year: "numeric", month: "long", day: "numeric" }) },
+                        { l: "Versión", v: `v${data.report_version}.0` },
+                        { l: "Estado", v: data.status },
+                        { l: "Repositorios", v: `${data.repositories_count} evaluados` },
+                    ].map(i => (
+                        <div key={i.l} style={{ display: "flex", justifyContent: "space-between", gap: "48px", padding: "6px 0", borderBottom: "1px solid #f0f0f0" }}>
+                            <span style={{ fontSize: "13px", fontWeight: 600, color: "#999" }}>{i.l}</span>
+                            <span style={{ fontSize: "14px", fontWeight: 600, color: "#1a1a1a" }}>{i.v}</span>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </SectionBox>
+    );
+}
+
+function ExecutiveView({ data, practices }: { data: ExecutiveSummary, practices: PracticeDetailSection[] }) {
+    const pieData = [
+        { id: 0, value: data.severity_summary.high, label: 'Alta', color: '#D32F2F' },
+        { id: 1, value: data.severity_summary.medium, label: 'Media', color: '#F57C00' },
+        { id: 2, value: data.severity_summary.low, label: 'Baja', color: '#388E3C' },
+    ];
+
+    const barData = practices.map(p => ({
+        practice: p.practice_code,
+        score: p.score,
+    }));
+
+    return (
+        <SectionBox title="📊 Resumen Ejecutivo Estratégico">
+            <div style={{ display: "flex", gap: "24px", alignItems: "center", marginBottom: "24px" }}>
+                <div style={{ width: "90px", height: "90px", borderRadius: "50%", backgroundColor: maturityColor(data.global_maturity_level) + "22", border: `3px solid ${maturityColor(data.global_maturity_level)}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <span style={{ fontSize: "14px", fontWeight: "bold", color: maturityColor(data.global_maturity_level), textAlign: "center" }}>{data.global_maturity_level}</span>
+                </div>
+                <div>
+                    <div style={{ fontSize: "22px", fontWeight: "bold", color: "#1a1a1a" }}>Nivel {data.global_maturity_numeric} — {data.global_maturity_level}</div>
+                    <div style={{ fontSize: "14px", color: "#666" }}>Nivel de Madurez Global</div>
+                </div>
+            </div>
+            <p style={{ fontSize: "14px", lineHeight: 1.7, color: "#444", marginBottom: "24px" }}>{data.maturity_interpretation}</p>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "32px", marginBottom: "32px" }}>
+                <SubSection title="Distribución de Hallazgos">
+                    <div style={{ display: "flex", justifyContent: "center" }}>
+                        <PieChart series={[{ data: pieData, innerRadius: 50 }]} width={300} height={200} />
+                    </div>
+                </SubSection>
+                <SubSection title="Principales Riesgos">
+                    <ul style={{ margin: 0, paddingLeft: "20px" }}>
+                        {data.principal_risks.map((r, i) => <li key={i} style={{ fontSize: "14px", color: "#444", marginBottom: "6px" }}>{r}</li>)}
+                    </ul>
+                </SubSection>
+            </div>
+
+            <SubSection title="Desempeño por Práctica">
+                <div style={{ display: "flex", justifyContent: "center" }}>
+                    <BarChart
+                        dataset={barData}
+                        xAxis={[{ scaleType: 'band', dataKey: 'practice' }]}
+                        series={[{ dataKey: 'score', label: 'Puntaje', color: '#1565C0' }]}
+                        width={600}
+                        height={300}
+                    />
+                </div>
+            </SubSection>
+
+            <SubSection title="Impacto Organizacional">
+                <p style={{ fontSize: "14px", lineHeight: 1.7, color: "#444", margin: 0 }}>{data.organizational_impact}</p>
+            </SubSection>
+            <SubSection title="Recomendación General">
+                <p style={{ fontSize: "14px", lineHeight: 1.7, color: "#444", margin: 0 }}>{data.general_recommendation}</p>
+            </SubSection>
+        </SectionBox>
+    );
+}
+
+function PracticesView({ data }: { data: PracticeDetailSection[] }) {
+    return (
+        <SectionBox title="📐 Resultados por Práctica (Detalle Analítico)">
+            {data.map(p => (
+                <div key={p.practice_code} style={{ marginBottom: "24px", border: "1px solid #e0e0e0", borderRadius: "10px", overflow: "hidden" }}>
+                    <div style={{ padding: "16px 20px", backgroundColor: "#fafafa", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e0e0e0" }}>
+                        <div>
+                            <span style={{ fontSize: "11px", fontWeight: 700, color: "#999" }}>{p.practice_code}</span>
+                            <div style={{ fontSize: "16px", fontWeight: "bold", color: "#1a1a1a" }}>{p.practice_name}</div>
+                        </div>
+                        <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+                            <span style={{ padding: "4px 12px", borderRadius: "12px", fontSize: "11px", fontWeight: 700, backgroundColor: maturityColor(p.maturity_level) + "22", color: maturityColor(p.maturity_level) }}>{p.maturity_level}</span>
+                            <span style={{ padding: "4px 12px", borderRadius: "12px", fontSize: "11px", fontWeight: 700, backgroundColor: riskColor(p.aggregated_risk) + "22", color: riskColor(p.aggregated_risk) }}>Riesgo: {p.aggregated_risk}</span>
+                        </div>
+                    </div>
+                    <div style={{ padding: "20px" }}>
+                        <div style={{ display: "flex", gap: "24px", marginBottom: "16px" }}>
+                            <div><span style={{ fontSize: "12px", color: "#999" }}>Puntaje</span><div style={{ fontSize: "18px", fontWeight: "bold" }}>{p.score}/{p.max_score}</div></div>
+                            <div><span style={{ fontSize: "12px", color: "#999" }}>Hallazgos</span><div style={{ fontSize: "18px", fontWeight: "bold" }}>{p.associated_findings_count}</div></div>
+                            <div><span style={{ fontSize: "12px", color: "#999" }}>Cumplimiento</span><div style={{ fontSize: "18px", fontWeight: "bold", color: "#66BB6A" }}>{p.rules_passed.length}</div></div>
+                            <div><span style={{ fontSize: "12px", color: "#999" }}>Brechas</span><div style={{ fontSize: "18px", fontWeight: "bold", color: "#EF5350" }}>{p.rules_failed.length}</div></div>
+                        </div>
+                        <div style={{ height: "8px", backgroundColor: "#f0f0f0", borderRadius: "4px", overflow: "hidden", marginBottom: "16px" }}>
+                            <div style={{ height: "100%", width: p.max_score > 0 ? `${(p.score / p.max_score) * 100}%` : "0%", backgroundColor: maturityColor(p.maturity_level), borderRadius: "4px" }} />
+                        </div>
+                        <p style={{ fontSize: "13px", lineHeight: 1.6, color: "#555" }}>{p.technical_explanation}</p>
+                    </div>
+                </div>
+            ))}
+        </SectionBox>
+    );
+}
+
+function FindingsView({ data, expandedFinding, setExpandedFinding }: { data: FindingsMatrixEntry[], expandedFinding: string | null, setExpandedFinding: (id: string | null) => void }) {
+    return (
+        <SectionBox title={`📋 Matriz de Hallazgos Formal (${data.length})`}>
+            {data.length === 0 ? <p style={{ color: "#666" }}>No hay hallazgos aprobados.</p> : (
+                <div style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                        <thead><tr style={{ borderBottom: "2px solid #e0e0e0" }}>
+                            {["ID", "Severidad", "Título", "Repositorio", "Regla"].map(h => (
+                                <th key={h} style={{ textAlign: "left", padding: "12px 8px", fontSize: "11px", fontWeight: 700, color: "#999", textTransform: "uppercase" }}>{h}</th>
+                            ))}
+                        </tr></thead>
+                        <tbody>
+                            {data.map(f => (
+                                <>
+                                    <tr key={f.id} onClick={() => setExpandedFinding(expandedFinding === f.id ? null : f.id)} style={{ borderBottom: expandedFinding === f.id ? "none" : "1px solid #f0f0f0", cursor: "pointer" }}>
+                                        <td style={{ padding: "10px 8px", fontSize: "12px", fontFamily: "monospace", color: "#666" }}>{f.id.substring(0, 8)}</td>
+                                        <td style={{ padding: "10px 8px" }}><SevBadge s={f.severity} /></td>
+                                        <td style={{ padding: "10px 8px", fontSize: "13px", fontWeight: 600, color: "#333" }}>{f.title}</td>
+                                        <td style={{ padding: "10px 8px", fontSize: "13px", color: "#555" }}>{f.repository}</td>
+                                        <td style={{ padding: "10px 8px", fontSize: "12px", fontFamily: "monospace", color: "#666" }}>{f.rule_violated}</td>
+                                    </tr>
+                                    {expandedFinding === f.id && (
+                                        <tr key={`${f.id}-exp`} style={{ borderBottom: "1px solid #f0f0f0" }}>
+                                            <td colSpan={5} style={{ padding: "0 8px 16px", backgroundColor: "#fafafa" }}>
+                                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", padding: "12px" }}>
+                                                    <div><DLabel>Descripción</DLabel><DVal>{f.description}</DVal></div>
+                                                    <div><DLabel>Impacto</DLabel><DVal>{f.impact}</DVal></div>
+                                                    <div><DLabel>Recomendación</DLabel><DVal>{f.recommendation}</DVal></div>
+                                                    <div><DLabel>Evidencia</DLabel><DVal>{Object.entries(f.evidence).map(([k, v]) => <div key={k}><span style={{ fontFamily: "monospace", fontWeight: 600 }}>{k}:</span> {String(v)}</div>)}</DVal></div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    )}
+                                </>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+        </SectionBox>
+    );
+}
+
+function TraceabilityView({ data }: { data: TraceabilitySection }) {
+    return (
+        <SectionBox title="🔗 Trazabilidad Completa">
+            <SubSection title="Metodología de Evaluación">
+                <p style={{ fontSize: "14px", lineHeight: 1.7, color: "#444", margin: 0 }}>{data.methodology_explanation}</p>
+            </SubSection>
+            <SubSection title="Cadenas de Evidencia">
+                <div style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                        <thead><tr style={{ borderBottom: "2px solid #e0e0e0" }}>
+                            {["Repo", "Métrica", "Valor", "Regla", "Resultado", "Nivel"].map(h => (
+                                <th key={h} style={{ textAlign: "left", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#999", textTransform: "uppercase" }}>{h}</th>
+                            ))}
+                        </tr></thead>
+                        <tbody>{data.chains.map((c, i) => (
+                            <tr key={i} style={{ borderBottom: "1px solid #f0f0f0" }}>
+                                <td style={{ padding: "10px 8px", fontSize: "13px", color: "#555" }}>{c.repository}</td>
+                                <td style={{ padding: "10px 8px", fontSize: "12px", fontFamily: "monospace" }}>{c.evidence_metric}</td>
+                                <td style={{ padding: "10px 8px", fontSize: "13px", fontWeight: 600 }}>{String(c.evidence_value)}</td>
+                                <td style={{ padding: "10px 8px", fontSize: "12px", fontFamily: "monospace" }}>{c.rule_evaluated}</td>
+                                <td style={{ padding: "10px 8px" }}><span style={{ padding: "3px 10px", borderRadius: "10px", fontSize: "11px", fontWeight: 700, backgroundColor: "#FFEBEE", color: "#C62828" }}>FAIL</span></td>
+                                <td style={{ padding: "10px 8px" }}><span style={{ padding: "3px 10px", borderRadius: "10px", fontSize: "11px", fontWeight: 700, backgroundColor: maturityColor(c.practice_level) + "22", color: maturityColor(c.practice_level) }}>{c.practice_level}</span></td>
+                            </tr>
+                        ))}</tbody>
+                    </table>
+                </div>
+            </SubSection>
+        </SectionBox>
+    );
+}
+
+function RiskView({ data }: { data: RiskAnalysis }) {
+    return (
+        <SectionBox title="⚠️ Análisis de Riesgo Consolidado">
+            <div style={{ display: "flex", gap: "24px", alignItems: "center", marginBottom: "24px" }}>
+                <div style={{ width: "90px", height: "90px", borderRadius: "50%", backgroundColor: riskColor(data.global_risk_level) + "22", border: `3px solid ${riskColor(data.global_risk_level)}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <span style={{ fontSize: "22px", fontWeight: "bold", color: riskColor(data.global_risk_level) }}>{data.global_risk_score}%</span>
+                </div>
+                <div>
+                    <div style={{ fontSize: "22px", fontWeight: "bold", color: "#1a1a1a" }}>Riesgo {data.global_risk_level}</div>
+                    <div style={{ fontSize: "14px", color: "#666" }}>Nivel de Riesgo Global</div>
+                </div>
+            </div>
+            <p style={{ fontSize: "14px", lineHeight: 1.7, color: "#444", marginBottom: "24px" }}>{data.risk_classification}</p>
+            <SubSection title="Áreas Críticas">
+                {data.critical_areas.map((a, i) => (
+                    <div key={i} style={{ padding: "12px 16px", marginBottom: "8px", borderRadius: "8px", backgroundColor: "#fafafa", borderLeft: `4px solid ${riskColor(a.risk_level)}` }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                            <span style={{ fontSize: "14px", fontWeight: 600, color: "#333" }}>{a.area}</span>
+                            <span style={{ padding: "3px 10px", borderRadius: "10px", fontSize: "11px", fontWeight: 700, backgroundColor: riskColor(a.risk_level) + "22", color: riskColor(a.risk_level) }}>{a.risk_level}</span>
+                        </div>
+                        <p style={{ fontSize: "13px", color: "#666", margin: 0 }}>{a.description}</p>
+                    </div>
+                ))}
+            </SubSection>
+            <SubSection title="Dependencias entre Debilidades">
+                <ul style={{ margin: 0, paddingLeft: "20px" }}>{data.weakness_dependencies.map((w, i) => <li key={i} style={{ fontSize: "14px", color: "#444", marginBottom: "8px", lineHeight: 1.6 }}>{w}</li>)}</ul>
+            </SubSection>
+        </SectionBox>
+    );
+}
+
+function RecommendationsView({ data }: { data: PrioritizedRecommendation[] }) {
+    return (
+        <SectionBox title="✅ Recomendaciones Prioritizadas">
+            <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <thead><tr style={{ borderBottom: "2px solid #e0e0e0" }}>
+                        {["#", "Acción", "Sev.", "Impacto", "Esfuerzo", "Responsable"].map(h => (
+                            <th key={h} style={{ textAlign: "left", padding: "12px 8px", fontSize: "11px", fontWeight: 700, color: "#999", textTransform: "uppercase" }}>{h}</th>
+                        ))}
+                    </tr></thead>
+                    <tbody>{data.map(r => (
+                        <tr key={r.priority} style={{ borderBottom: "1px solid #f0f0f0" }}>
+                            <td style={{ padding: "12px 8px", fontSize: "16px", fontWeight: "bold", color: "#1565C0" }}>{r.priority}</td>
+                            <td style={{ padding: "12px 8px", fontSize: "13px", color: "#444" }}>{r.action}</td>
+                            <td style={{ padding: "12px 8px" }}><SevBadge s={r.severity} /></td>
+                            <td style={{ padding: "12px 8px", fontSize: "13px", fontWeight: 600 }}>{r.impact}</td>
+                            <td style={{ padding: "12px 8px", fontSize: "13px" }}>{r.implementation_ease}</td>
+                            <td style={{ padding: "12px 8px", fontSize: "13px", color: "#555" }}>{r.suggested_responsible}</td>
+                        </tr>
+                    ))}</tbody>
+                </table>
+            </div>
+        </SectionBox>
+    );
+}
+
+function RoadmapView({ data }: { data: ImprovementRoadmap }) {
+    return (
+        <SectionBox title="🗺️ Roadmap de Mejora">
+            {[
+                { title: "Corto Plazo (0–30 días)", items: data.short_term, color: "#C62828", bg: "#FFEBEE" },
+                { title: "Mediano Plazo (1–3 meses)", items: data.medium_term, color: "#E65100", bg: "#FFF3E0" },
+                { title: "Largo Plazo (3–6 meses)", items: data.long_term, color: "#2E7D32", bg: "#E8F5E9" },
+            ].map(phase => phase.items.length > 0 && (
+                <div key={phase.title} style={{ marginBottom: "24px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
+                        <div style={{ width: "12px", height: "12px", borderRadius: "50%", backgroundColor: phase.color }} />
+                        <span style={{ fontSize: "16px", fontWeight: "bold", color: "#1a1a1a" }}>{phase.title}</span>
+                    </div>
+                    {phase.items.map((item, i) => (
+                        <div key={i} style={{ padding: "12px 16px", marginBottom: "8px", borderRadius: "8px", backgroundColor: "#fafafa", borderLeft: `3px solid ${phase.color}`, marginLeft: "20px" }}>
+                            <div style={{ fontSize: "13px", fontWeight: 600, color: "#333", marginBottom: "4px" }}>{item.action}</div>
+                            <div style={{ fontSize: "12px", color: "#888" }}>Resultado esperado: {item.expected_outcome}</div>
+                        </div>
+                    ))}
+                </div>
+            ))}
+        </SectionBox>
+    );
+}
+
+function ConclusionView({ data }: { data: TechnicalConclusion }) {
+    return (
+        <SectionBox title="🏁 Conclusión Técnica">
+            <SubSection title="Estado Actual del Proceso">
+                <p style={{ fontSize: "14px", lineHeight: 1.7, color: "#444", margin: 0 }}>{data.current_state}</p>
+            </SubSection>
+            <SubSection title="Brechas contra el Estándar">
+                <ul style={{ margin: 0, paddingLeft: "20px" }}>{data.gaps_against_standard.map((g: string, i: number) => <li key={i} style={{ fontSize: "14px", color: "#444", marginBottom: "6px" }}>{g}</li>)}</ul>
+            </SubSection>
+            <SubSection title="Riesgo de Inacción">
+                <p style={{ fontSize: "14px", lineHeight: 1.7, color: "#444", margin: 0 }}>{data.risk_of_inaction}</p>
+            </SubSection>
+            <SubSection title="Escalabilidad">
+                <p style={{ fontSize: "14px", lineHeight: 1.7, color: "#444", margin: 0 }}>{data.scalability_readiness}</p>
+            </SubSection>
+        </SectionBox>
+    );
+}
+
+function PrintTemplate({ data }: { data: ProfessionalReportData }) {
+    return (
+        <div style={{ padding: "60px", backgroundColor: "white", width: "1000px" }}>
+            <CoverView data={data.cover_page} />
+            <div style={{ pageBreakBefore: "always", height: "40px" }} />
+            <ExecutiveView data={data.executive_summary} practices={data.practice_details} />
+            <div style={{ pageBreakBefore: "always", height: "40px" }} />
+            <PracticesView data={data.practice_details} />
+            <div style={{ pageBreakBefore: "always", height: "40px" }} />
+            <FindingsView data={data.findings_matrix} expandedFinding={null} setExpandedFinding={() => { }} />
+            <div style={{ pageBreakBefore: "always", height: "40px" }} />
+            <TraceabilityView data={data.traceability} />
+            <div style={{ pageBreakBefore: "always", height: "40px" }} />
+            <RiskView data={data.risk_analysis} />
+            <div style={{ pageBreakBefore: "always", height: "40px" }} />
+            <RecommendationsView data={data.recommendations} />
+            <div style={{ pageBreakBefore: "always", height: "40px" }} />
+            <RoadmapView data={data.roadmap} />
+            <div style={{ pageBreakBefore: "always", height: "40px" }} />
+            <ConclusionView data={data.conclusion} />
+        </div>
+    );
+}
+
+// ─── Helpers Components ────────────────────────────────────────────────────────
+
+function SectionBox({ title, children }: { title: string; children: React.ReactNode }) {
     return (
         <div style={{ backgroundColor: "white", borderRadius: "12px", border: "1px solid #e0e0e0", overflow: "hidden", marginBottom: "20px" }}>
             {title && <div style={{ padding: "16px 24px", borderBottom: "1px solid #e0e0e0", backgroundColor: "#fafafa" }}><h3 style={{ margin: 0, fontSize: "16px", fontWeight: "bold", color: "#1a1a1a" }}>{title}</h3></div>}
@@ -612,4 +625,24 @@ function DLabel({ children }: { children: React.ReactNode }) {
 
 function DVal({ children }: { children: React.ReactNode }) {
     return <div style={{ fontSize: "13px", color: "#555", lineHeight: 1.5 }}>{children}</div>;
+}
+
+function SevBadge({ s }: { s: string }) {
+    const color = s === "HIGH" ? "#C62828" : s === "MEDIUM" ? "#E65100" : "#2E7D32";
+    const bg = s === "HIGH" ? "#FFEBEE" : s === "MEDIUM" ? "#FFF3E0" : "#E8F5E9";
+    return <span style={{ padding: "3px 10px", borderRadius: "10px", fontSize: "11px", fontWeight: 700, backgroundColor: bg, color }}>{s}</span>;
+}
+
+function maturityColor(lvl: string) {
+    if (lvl === "Optimizado") return "#1565C0";
+    if (lvl === "Gestionado") return "#2E7D32";
+    if (lvl === "Definido") return "#F9A825";
+    if (lvl === "Repetible") return "#EF6C00";
+    return "#C62828";
+}
+
+function riskColor(lvl: string) {
+    if (lvl === "BAJO") return "#2E7D32";
+    if (lvl === "MEDIO") return "#F9A825";
+    return "#C62828";
 }
