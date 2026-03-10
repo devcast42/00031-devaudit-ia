@@ -10,17 +10,22 @@ import {
     Typography,
     Avatar,
     Divider,
-    alpha
+    alpha,
+    IconButton,
+    Tooltip
 } from "@mui/material";
 import DashboardIcon from '@mui/icons-material/Assignment';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import SettingsIcon from '@mui/icons-material/Settings';
+import ExitToAppIcon from '@mui/icons-material/ExitToApp';
+import { useAuth } from "../context/AuthContext";
 
 const drawerWidth = 260;
 
 export function ManagementLayout() {
     const navigate = useNavigate();
     const location = useLocation();
+    const auth = useAuth();
 
     const menuItems = [
         { text: "Auditorías", icon: <DashboardIcon />, path: "/" },
@@ -123,7 +128,7 @@ export function ManagementLayout() {
                         >
                             JD
                         </Avatar>
-                        <Box>
+                        <Box sx={{ flexGrow: 1 }}>
                             <Typography variant="body2" sx={{ fontWeight: 600, color: 'white' }}>
                                 John Doe
                             </Typography>
@@ -131,6 +136,14 @@ export function ManagementLayout() {
                                 Auditor Principal
                             </Typography>
                         </Box>
+                        <Tooltip title="Cerrar Sesión">
+                            <IconButton 
+                                onClick={() => { auth.logout(); navigate('/login'); }} 
+                                sx={{ color: '#94a3b8', '&:hover': { color: '#ef4444', bgcolor: 'rgba(239, 68, 68, 0.1)' } }}
+                            >
+                                <ExitToAppIcon />
+                            </IconButton>
+                        </Tooltip>
                     </Box>
                 </Box>
             </Drawer>
