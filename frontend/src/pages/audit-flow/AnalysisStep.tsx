@@ -1,5 +1,35 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import {
+    Box,
+    Typography,
+    Button,
+    Paper,
+    Grid,
+    alpha,
+    Stack,
+    CircularProgress,
+    Card,
+    CardContent,
+    LinearProgress,
+    Chip,
+    IconButton,
+    Collapse,
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableRow
+} from "@mui/material";
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import AnalyticsIcon from '@mui/icons-material/Analytics';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import ScienceIcon from '@mui/icons-material/Science';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import client from "../../app/api";
 
 // ─── Interfaces matching AnalysisOutput from backend v2 ─────────────────────────
@@ -95,24 +125,34 @@ export function AnalysisStep() {
 
     const maturityColor = (level: string) => {
         switch (level) {
-            case "Inicial": return "#EF5350";
-            case "Gestionado": return "#FFA726";
-            case "Definido": return "#66BB6A";
-            default: return "#999";
+            case "Inicial": return "#ef4444";
+            case "Gestionado": return "#f59e0b";
+            case "Definido": return "#10b981";
+            default: return "#94a3b8";
         }
     };
 
     const severityBadge = (severity: string) => {
-        const colors: Record<string, { bg: string; text: string }> = {
-            HIGH: { bg: "#FFEBEE", text: "#C62828" },
-            MEDIUM: { bg: "#FFF3E0", text: "#E65100" },
-            LOW: { bg: "#E8F5E9", text: "#2E7D32" },
+        const configs: Record<string, { color: string; bg: string }> = {
+            HIGH: { color: "#ef4444", bg: "rgba(239, 68, 68, 0.1)" },
+            MEDIUM: { color: "#f59e0b", bg: "rgba(245, 158, 11, 0.1)" },
+            LOW: { color: "#10b981", bg: "rgba(16, 185, 129, 0.1)" },
         };
-        const c = colors[severity] || colors.LOW;
+        const c = configs[severity] || configs.LOW;
         return (
-            <span style={{ padding: "4px 12px", borderRadius: "12px", fontSize: "12px", fontWeight: "600", backgroundColor: c.bg, color: c.text, textTransform: "uppercase" }}>
-                {severity}
-            </span>
+            <Chip
+                label={severity}
+                size="small"
+                sx={{
+                    bgcolor: c.bg,
+                    color: c.color,
+                    fontWeight: 800,
+                    borderRadius: '6px',
+                    fontSize: '11px',
+                    border: '1px solid',
+                    borderColor: alpha(c.color, 0.2)
+                }}
+            />
         );
     };
 
@@ -125,246 +165,356 @@ export function AnalysisStep() {
         : null;
 
     return (
-        <div style={{ width: "100%", maxWidth: "1100px", margin: "0 auto" }}>
-            {/* Step Header */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "8px" }}>
-                <div>
-                    <div style={{ fontSize: "12px", fontWeight: "bold", color: "#2196F3", textTransform: "uppercase", marginBottom: "4px" }}>
-                        Paso 3 de 5 • Análisis
-                    </div>
-                    <h2 style={{ fontSize: "28px", fontWeight: "bold", color: "#1a1a1a", margin: 0 }}>
-                        Análisis de Auditoría
-                    </h2>
-                </div>
-                <div style={{ textAlign: "right" }}>
-                    <div style={{ fontSize: "14px", fontWeight: "bold", color: "#1a1a1a", marginBottom: "4px" }}>50% Completado</div>
-                    <div style={{ width: "200px", height: "6px", backgroundColor: "#e0e0e0", borderRadius: "3px" }}>
-                        <div style={{ width: "50%", height: "100%", backgroundColor: "#2196F3", borderRadius: "3px" }} />
-                    </div>
-                </div>
-            </div>
+        <Box sx={{ width: "100%", maxWidth: "1200px", mx: 'auto' }}>
+            {/* Header */}
+            <Box sx={{ mb: 4 }}>
+                <Stack direction="row" justifyContent="space-between" alignItems="flex-end" sx={{ mb: 1 }}>
+                    <Box>
+                        <Typography variant="overline" sx={{ fontWeight: 800, color: 'primary.main', letterSpacing: '0.1em' }}>
+                            Paso 3 de 5 • Análisis Estratégico
+                        </Typography>
+                        <Typography variant="h4" sx={{ fontWeight: 800, mt: 0.5 }}>
+                            Resultados del Análisis
+                        </Typography>
+                    </Box>
+                    <Box sx={{ textAlign: "right", display: { xs: 'none', sm: 'block' } }}>
+                        <Typography variant="caption" sx={{ fontWeight: 800, color: 'text.secondary', textTransform: 'uppercase' }}>
+                            50% Completado
+                        </Typography>
+                        <Box sx={{ width: "200px", height: "6px", bgcolor: alpha('#fff', 0.1), borderRadius: "3px", mt: 1, overflow: 'hidden' }}>
+                            <Box sx={{ width: "50%", height: "100%", bgcolor: "primary.main" }} />
+                        </Box>
+                    </Box>
+                </Stack>
+                <Typography variant="body1" sx={{ color: "text.secondary", mt: 2 }}>
+                    Evaluación multidimensional basada en el estándar DevAudit v1.0, cruzando métricas y evidencias técnicas.
+                </Typography>
+            </Box>
 
-            <div style={{ height: "1px", backgroundColor: "#e0e0e0", margin: "24px 0" }} />
-
-            {/* Run Analysis Button */}
-            {!result && (
-                <div style={{ backgroundColor: "white", borderRadius: "12px", border: "1px solid #e0e0e0", padding: "60px", textAlign: "center", marginBottom: "24px" }}>
-                    <div style={{ fontSize: "48px", marginBottom: "16px" }}>🔬</div>
-                    <h3 style={{ margin: "0 0 8px 0", color: "#333", fontSize: "20px" }}>Listo para Analizar</h3>
-                    <p style={{ margin: "0 0 24px 0", fontSize: "14px", color: "#666", maxWidth: "500px", marginLeft: "auto", marginRight: "auto" }}>
-                        El motor de análisis evaluará cada repositorio individualmente contra el estándar DevAudit v1.0 y calculará los niveles de madurez con trazabilidad completa.
-                    </p>
-                    <button
+            {!result ? (
+                <Paper sx={{
+                    p: 8,
+                    textAlign: 'center',
+                    borderRadius: '24px',
+                    bgcolor: alpha('#1e293b', 0.4),
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    backdropFilter: 'blur(20px)',
+                }}>
+                    <ScienceIcon sx={{ fontSize: 64, color: alpha('#fff', 0.2), mb: 2 }} />
+                    <Typography variant="h5" sx={{ mb: 1, fontWeight: 700 }}>Motor de Análisis Listo</Typography>
+                    <Typography variant="body2" sx={{ color: 'text.secondary', mb: 4, maxWidth: 500, mx: 'auto' }}>
+                        Evaluaremos cada repositorio contra el estándar para calcular niveles de madurez con trazabilidad completa.
+                    </Typography>
+                    <Button
+                        variant="contained"
+                        size="large"
+                        startIcon={isRunning ? <CircularProgress size={20} color="inherit" /> : <ScienceIcon />}
                         onClick={handleRunAnalysis}
                         disabled={isRunning}
-                        style={{ backgroundColor: isRunning ? "#90CAF9" : "#2196F3", color: "white", border: "none", padding: "14px 32px", borderRadius: "8px", cursor: isRunning ? "not-allowed" : "pointer", fontWeight: "600", fontSize: "16px", display: "inline-flex", alignItems: "center", gap: "8px" }}
+                        sx={{ borderRadius: '12px', py: 1.5, px: 4 }}
                     >
-                        {isRunning ? "⏳ Ejecutando Análisis..." : "▶ Ejecutar Análisis"}
-                    </button>
-                    {error && <p style={{ marginTop: "16px", color: "#C62828", fontSize: "14px" }}>{error}</p>}
-                </div>
-            )}
-
-            {/* Results Dashboard */}
-            {result && (
-                <>
-                    {/* Global Maturity Level */}
-                    <div style={{ backgroundColor: "white", borderRadius: "12px", border: "1px solid #e0e0e0", padding: "32px", marginBottom: "24px", display: "flex", alignItems: "center", gap: "32px" }}>
-                        <div style={{
-                            width: "80px", height: "80px", borderRadius: "50%",
-                            backgroundColor: maturityColor(result.aggregated_results.global_maturity_level) + "22",
-                            border: `3px solid ${maturityColor(result.aggregated_results.global_maturity_level)}`,
-                            display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
-                        }}>
-                            <span style={{ fontSize: "16px", fontWeight: "bold", color: maturityColor(result.aggregated_results.global_maturity_level), textAlign: "center" }}>
+                        {isRunning ? "Ejecutando Análisis..." : "Ejecutar Análisis Técnico"}
+                    </Button>
+                    {error && <Typography color="error" variant="caption" sx={{ display: 'block', mt: 2 }}>{error}</Typography>}
+                </Paper>
+            ) : (
+                <Stack spacing={4}>
+                    {/* Results Dashboard Summary */}
+                    <Paper sx={{
+                        p: 4,
+                        borderRadius: '24px',
+                        bgcolor: alpha('#1e293b', 0.4),
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        backdropFilter: 'blur(20px)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 4
+                    }}>
+                        <Box sx={{ position: 'relative', display: 'inline-flex' }}>
+                            <CircularProgress
+                                variant="determinate"
+                                value={100}
+                                size={100}
+                                thickness={4}
+                                sx={{ color: alpha('#fff', 0.05) }}
+                            />
+                            <CircularProgress
+                                variant="determinate"
+                                value={((result.aggregated_results.global_maturity_level === "Definido" ? 100 : result.aggregated_results.global_maturity_level === "Gestionado" ? 66 : 33))}
+                                size={100}
+                                thickness={4}
+                                sx={{
+                                    color: maturityColor(result.aggregated_results.global_maturity_level),
+                                    position: 'absolute',
+                                    left: 0,
+                                    '& .MuiCircularProgress-circle': { strokeLinecap: 'round' }
+                                }}
+                            />
+                            <Box sx={{
+                                top: 0, left: 0, bottom: 0, right: 0, position: 'absolute',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            }}>
+                                <Typography variant="h6" sx={{ fontWeight: 800, color: maturityColor(result.aggregated_results.global_maturity_level) }}>
+                                    {result.aggregated_results.global_maturity_level.charAt(0)}
+                                </Typography>
+                            </Box>
+                        </Box>
+                        <Box sx={{ flex: 1 }}>
+                            <Typography variant="overline" sx={{ fontWeight: 800, color: 'text.secondary' }}>Nivel de Madurez Global</Typography>
+                            <Typography variant="h4" sx={{ fontWeight: 800, color: maturityColor(result.aggregated_results.global_maturity_level) }}>
                                 {result.aggregated_results.global_maturity_level}
-                            </span>
-                        </div>
-                        <div>
-                            <div style={{ fontSize: "12px", fontWeight: "700", color: "#999", textTransform: "uppercase", marginBottom: "4px" }}>
-                                Nivel de Madurez Global
-                            </div>
-                            <div style={{ fontSize: "24px", fontWeight: "bold", color: "#1a1a1a" }}>
-                                {result.aggregated_results.global_maturity_level}
-                            </div>
-                            <div style={{ fontSize: "14px", color: "#666", marginTop: "4px" }}>
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
                                 {result.repository_results.length} repositorios evaluados • {result.findings.length} hallazgos generados
-                            </div>
-                        </div>
-                        <div style={{ marginLeft: "auto" }}>
-                            <button
-                                onClick={handleRunAnalysis}
-                                disabled={isRunning}
-                                style={{ padding: "8px 16px", border: "1px solid #e0e0e0", borderRadius: "6px", backgroundColor: "white", cursor: "pointer", fontWeight: "500", fontSize: "13px", color: "#333" }}
-                            >
-                                {isRunning ? "Re-ejecutando..." : "🔄 Re-analizar"}
-                            </button>
-                        </div>
-                    </div>
+                            </Typography>
+                        </Box>
+                        <Button
+                            startIcon={<RefreshIcon />}
+                            variant="outlined"
+                            onClick={handleRunAnalysis}
+                            disabled={isRunning}
+                            sx={{ borderRadius: '10px' }}
+                        >
+                            {isRunning ? "Re-ejecutando..." : "Re-analizar"}
+                        </Button>
+                    </Paper>
 
-                    {/* Aggregated Practice Scores */}
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "16px", marginBottom: "24px" }}>
+                    {/* Practice Scores Grid */}
+                    <Grid container spacing={3}>
                         {Object.entries(result.aggregated_results.practice_scores).map(([code, data]) => {
                             const names: Record<string, string> = { SCM: "Gestión de Configuración", QA: "Aseguramiento de Calidad", PM: "Gestión de Proyecto" };
+                            const color = maturityColor(data.level);
                             return (
-                                <div key={code} style={{ backgroundColor: "white", borderRadius: "12px", border: "1px solid #e0e0e0", padding: "24px", position: "relative", overflow: "hidden" }}>
-                                    <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "4px", backgroundColor: maturityColor(data.level) }} />
-                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px" }}>
-                                        <div>
-                                            <div style={{ fontSize: "11px", fontWeight: "700", color: "#999", textTransform: "uppercase", marginBottom: "4px" }}>{code}</div>
-                                            <div style={{ fontSize: "16px", fontWeight: "bold", color: "#1a1a1a" }}>{names[code] || code}</div>
-                                        </div>
-                                        <div style={{ backgroundColor: maturityColor(data.level) + "22", color: maturityColor(data.level), padding: "6px 12px", borderRadius: "16px", fontSize: "12px", fontWeight: "700" }}>
-                                            {data.level}
-                                        </div>
-                                    </div>
-                                    <div style={{ marginBottom: "8px" }}>
-                                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#666", marginBottom: "6px" }}>
-                                            <span>Puntaje</span>
-                                            <span>{data.score} / {data.max_score}</span>
-                                        </div>
-                                        <div style={{ height: "8px", backgroundColor: "#f0f0f0", borderRadius: "4px", overflow: "hidden" }}>
-                                            <div style={{ height: "100%", width: data.max_score > 0 ? `${(data.score / data.max_score) * 100}%` : '0%', backgroundColor: maturityColor(data.level), borderRadius: "4px", transition: "width 0.5s ease" }} />
-                                        </div>
-                                    </div>
-                                </div>
+                                <Grid size={{ xs: 12, md: 4 }} key={code}>
+                                    <Card sx={{
+                                        height: '100%',
+                                        bgcolor: alpha('#1e293b', 0.4),
+                                        borderRadius: '20px',
+                                        border: '1px solid',
+                                        borderColor: alpha(color, 0.2),
+                                        position: 'relative',
+                                        '&:before': {
+                                            content: '""',
+                                            position: 'absolute',
+                                            top: 0,
+                                            left: 0,
+                                            width: '4px',
+                                            height: '100%',
+                                            bgcolor: color
+                                        }
+                                    }}>
+                                        <CardContent sx={{ p: 3 }}>
+                                            <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ mb: 2 }}>
+                                                <Box>
+                                                    <Typography variant="caption" sx={{ fontWeight: 800, color: 'text.secondary', textTransform: 'uppercase' }}>{code}</Typography>
+                                                    <Typography variant="h6" sx={{ fontWeight: 700 }}>{names[code] || code}</Typography>
+                                                </Box>
+                                                <Chip
+                                                    label={data.level}
+                                                    size="small"
+                                                    sx={{ bgcolor: alpha(color, 0.1), color: color, fontWeight: 800, fontSize: '10px' }}
+                                                />
+                                            </Stack>
+                                            <Box sx={{ mb: 1 }}>
+                                                <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>
+                                                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>Cumplimiento</Typography>
+                                                    <Typography variant="caption" sx={{ fontWeight: 800 }}>{data.score} / {data.max_score}</Typography>
+                                                </Stack>
+                                                <LinearProgress
+                                                    variant="determinate"
+                                                    value={data.max_score > 0 ? (data.score / data.max_score) * 100 : 0}
+                                                    sx={{
+                                                        height: 6,
+                                                        borderRadius: 3,
+                                                        bgcolor: alpha('#fff', 0.05),
+                                                        '& .MuiLinearProgress-bar': { bgcolor: color, borderRadius: 3 }
+                                                    }}
+                                                />
+                                            </Box>
+                                        </CardContent>
+                                    </Card>
+                                </Grid>
                             );
                         })}
-                    </div>
+                    </Grid>
 
-                    {/* Repository Selector */}
-                    <div style={{ backgroundColor: "white", borderRadius: "12px", border: "1px solid #e0e0e0", overflow: "hidden", marginBottom: "24px" }}>
-                        <div style={{ padding: "16px 24px", borderBottom: "1px solid #e0e0e0", backgroundColor: "#fafafa" }}>
-                            <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "bold", color: "#1a1a1a" }}>
-                                📦 Resultados por Repositorio
-                            </h3>
-                        </div>
-                        <div style={{ display: "flex", gap: "8px", padding: "16px 24px", flexWrap: "wrap" }}>
+                    {/* Repository Breakdown */}
+                    <Paper sx={{
+                        p: 3,
+                        borderRadius: '24px',
+                        bgcolor: alpha('#1e293b', 0.4),
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        backdropFilter: 'blur(20px)',
+                    }}>
+                        <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 3 }}>
+                            <Box sx={{ p: 1, borderRadius: '8px', bgcolor: alpha('#fff', 0.05), color: 'primary.main' }}>
+                                <AnalyticsIcon />
+                            </Box>
+                            <Typography variant="h6" sx={{ fontWeight: 800 }}>Análisis Detallado por Repositorio</Typography>
+                        </Stack>
+
+                        <Stack direction="row" spacing={1} sx={{ mb: 4, flexWrap: 'wrap', gap: 1 }}>
                             {result.repository_results.map(rr => (
-                                <button
+                                <Chip
                                     key={rr.repository}
+                                    label={rr.repository}
                                     onClick={() => setSelectedRepo(selectedRepo === rr.repository ? null : rr.repository)}
-                                    style={{
-                                        padding: "8px 16px", borderRadius: "20px", fontSize: "13px", fontWeight: "600",
-                                        border: selectedRepo === rr.repository ? "2px solid #2196F3" : "1px solid #e0e0e0",
-                                        backgroundColor: selectedRepo === rr.repository ? "#E3F2FD" : "white",
-                                        color: selectedRepo === rr.repository ? "#1565C0" : "#555",
-                                        cursor: "pointer",
-                                    }}
-                                >
-                                    {rr.repository}
-                                </button>
+                                    color={selectedRepo === rr.repository ? "primary" : "default"}
+                                    variant={selectedRepo === rr.repository ? "filled" : "outlined"}
+                                    sx={{ borderRadius: '10px', fontWeight: 600 }}
+                                />
                             ))}
-                        </div>
+                        </Stack>
 
-                        {/* Per-repo practice details */}
                         {activeRepo && (
-                            <div style={{ padding: "0 24px 24px" }}>
+                            <Stack spacing={2}>
                                 {activeRepo.practice_results.map(pr => (
-                                    <div key={pr.practice} style={{ marginBottom: "16px", border: "1px solid #f0f0f0", borderRadius: "8px", overflow: "hidden" }}>
-                                        <div style={{ padding: "12px 16px", backgroundColor: "#fafafa", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                            <div>
-                                                <span style={{ fontWeight: "700", fontSize: "14px", color: "#333" }}>{pr.practice}</span>
-                                                <span style={{ marginLeft: "12px", fontSize: "13px", color: "#666" }}>
-                                                    {pr.score}/{pr.max_score} — {pr.level}
-                                                </span>
-                                            </div>
-                                            <span style={{ backgroundColor: maturityColor(pr.level) + "22", color: maturityColor(pr.level), padding: "4px 10px", borderRadius: "12px", fontSize: "11px", fontWeight: "700" }}>
-                                                {pr.level}
-                                            </span>
-                                        </div>
-                                        {/* Evaluated Rules */}
-                                        <div style={{ padding: "8px 16px" }}>
+                                    <Box key={pr.practice} sx={{
+                                        borderRadius: '16px',
+                                        border: '1px solid',
+                                        borderColor: 'divider',
+                                        overflow: 'hidden'
+                                    }}>
+                                        <Box sx={{
+                                            p: 2,
+                                            bgcolor: alpha('#fff', 0.03),
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center'
+                                        }}>
+                                            <Stack direction="row" spacing={2} alignItems="center">
+                                                <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>{pr.practice}</Typography>
+                                                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                                                    {pr.score}/{pr.max_score} puntos — {pr.level}
+                                                </Typography>
+                                            </Stack>
+                                            <Chip
+                                                label={pr.level}
+                                                size="small"
+                                                sx={{ bgcolor: alpha(maturityColor(pr.level), 0.1), color: maturityColor(pr.level), fontWeight: 800, fontSize: '10px' }}
+                                            />
+                                        </Box>
+                                        <Box sx={{ p: 1 }}>
                                             {pr.evaluated_rules.map(rule => {
                                                 const ruleKey = `${activeRepo.repository}-${rule.rule_id}`;
                                                 const isExpanded = expandedRules[ruleKey];
                                                 return (
-                                                    <div key={rule.rule_id} style={{ borderBottom: "1px solid #f5f5f5", padding: "8px 0" }}>
-                                                        <div
+                                                    <Box key={rule.rule_id} sx={{
+                                                        borderBottom: '1px solid',
+                                                        borderColor: alpha('#fff', 0.05),
+                                                        '&:last-child': { borderBottom: 'none' }
+                                                    }}>
+                                                        <Box
                                                             onClick={() => toggleRuleExpand(ruleKey)}
-                                                            style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}
+                                                            sx={{
+                                                                p: 1.5,
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                gap: 2,
+                                                                cursor: 'pointer',
+                                                                '&:hover': { bgcolor: alpha('#fff', 0.02) }
+                                                            }}
                                                         >
-                                                            <span style={{ fontSize: "14px" }}>{rule.passed ? "✅" : "❌"}</span>
-                                                            <span style={{ fontSize: "13px", fontWeight: "600", color: "#333", fontFamily: "monospace" }}>{rule.rule_id}</span>
-                                                            <span style={{ fontSize: "13px", color: "#666", flex: 1 }}>{rule.detail}</span>
-                                                            <span style={{ fontSize: "11px", color: "#999" }}>{isExpanded ? "▲" : "▼"}</span>
-                                                        </div>
-                                                        {isExpanded && (
-                                                            <div style={{ marginTop: "8px", padding: "8px 12px", backgroundColor: "#f9f9f9", borderRadius: "6px", fontSize: "12px" }}>
-                                                                <div style={{ fontWeight: "600", color: "#555", marginBottom: "6px" }}>Evidencia (snapshot):</div>
+                                                            {rule.passed ?
+                                                                <CheckCircleOutlineIcon sx={{ color: 'success.main', fontSize: 18 }} /> :
+                                                                <ErrorOutlineIcon sx={{ color: 'error.main', fontSize: 18 }} />
+                                                            }
+                                                            <Typography sx={{ fontSize: '13px', fontWeight: 700, fontFamily: 'monospace', color: rule.passed ? 'success.light' : 'error.light', minWidth: 100 }}>
+                                                                {rule.rule_id}
+                                                            </Typography>
+                                                            <Typography sx={{ fontSize: '13px', flex: 1, color: 'text.secondary' }}>
+                                                                {rule.detail}
+                                                            </Typography>
+                                                            <IconButton size="small">
+                                                                {isExpanded ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
+                                                            </IconButton>
+                                                        </Box>
+                                                        <Collapse in={isExpanded}>
+                                                            <Box sx={{ p: 2, mx: 2, mb: 1, borderRadius: '8px', bgcolor: alpha('#000', 0.2) }}>
+                                                                <Typography variant="overline" sx={{ fontWeight: 800, color: 'text.secondary', display: 'block', mb: 1 }}>Evidencia Recolectada</Typography>
                                                                 {Object.entries(rule.metric_values).map(([k, v]) => (
-                                                                    <div key={k} style={{ display: "flex", gap: "8px", color: "#666", marginBottom: "2px" }}>
-                                                                        <span style={{ fontFamily: "monospace", fontWeight: "600" }}>{k}:</span>
-                                                                        <span>{String(v)}</span>
-                                                                    </div>
+                                                                    <Stack key={k} direction="row" spacing={1} sx={{ mb: 0.5 }}>
+                                                                        <Typography sx={{ fontFamily: 'monospace', fontSize: '12px', fontWeight: 800, color: 'primary.light' }}>{k}:</Typography>
+                                                                        <Typography sx={{ fontFamily: 'monospace', fontSize: '12px' }}>{String(v)}</Typography>
+                                                                    </Stack>
                                                                 ))}
-                                                            </div>
-                                                        )}
-                                                    </div>
+                                                            </Box>
+                                                        </Collapse>
+                                                    </Box>
                                                 );
                                             })}
-                                        </div>
-                                    </div>
+                                        </Box>
+                                    </Box>
                                 ))}
-                            </div>
+                            </Stack>
                         )}
-                    </div>
+                    </Paper>
 
-                    {/* Findings Table */}
+                    {/* Findings Matrix */}
                     {result.findings.length > 0 && (
-                        <div style={{ backgroundColor: "white", borderRadius: "12px", border: "1px solid #e0e0e0", overflow: "hidden", marginBottom: "24px" }}>
-                            <div style={{ padding: "16px 24px", borderBottom: "1px solid #e0e0e0", backgroundColor: "#fafafa" }}>
-                                <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "bold", color: "#1a1a1a" }}>
-                                    📋 Hallazgos ({result.findings.length})
-                                </h3>
-                            </div>
-                            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                                <thead>
-                                    <tr style={{ borderBottom: "1px solid #e0e0e0" }}>
-                                        {["Repositorio", "Práctica", "Regla", "Severidad", "Descripción"].map(h => (
-                                            <th key={h} style={{ textAlign: "left", padding: "12px 16px", fontSize: "12px", fontWeight: "700", color: "#999", textTransform: "uppercase" }}>
-                                                {h}
-                                            </th>
+                        <Paper sx={{
+                            borderRadius: '24px',
+                            bgcolor: alpha('#1e293b', 0.4),
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            backdropFilter: 'blur(20px)',
+                            overflow: 'hidden'
+                        }}>
+                            <Box sx={{ p: 3, borderBottom: '1px solid', borderColor: 'divider', bgcolor: alpha('#fff', 0.02) }}>
+                                <Typography variant="h6" sx={{ fontWeight: 800 }}>Matriz de Hallazgos Potenciales</Typography>
+                            </Box>
+                            <Box sx={{ overflowX: 'auto' }}>
+                                <Table size="small">
+                                    <TableHead>
+                                        <TableRow sx={{ bgcolor: alpha('#fff', 0.03) }}>
+                                            <TableCell sx={{ fontWeight: 800, fontSize: '11px', textTransform: 'uppercase', color: 'text.secondary' }}>Repositorio</TableCell>
+                                            <TableCell sx={{ fontWeight: 800, fontSize: '11px', textTransform: 'uppercase', color: 'text.secondary' }}>Práctica</TableCell>
+                                            <TableCell sx={{ fontWeight: 800, fontSize: '11px', textTransform: 'uppercase', color: 'text.secondary' }}>Severidad</TableCell>
+                                            <TableCell sx={{ fontWeight: 800, fontSize: '11px', textTransform: 'uppercase', color: 'text.secondary' }}>Hallazgo</TableCell>
+                                        </TableRow>
+                                    </TableHead>
+                                    <TableBody>
+                                        {result.findings.map(f => (
+                                            <TableRow key={f.finding_id} sx={{ '&:hover': { bgcolor: alpha('#fff', 0.02) } }}>
+                                                <TableCell sx={{ fontSize: '12px', fontWeight: 600 }}>{f.repository}</TableCell>
+                                                <TableCell sx={{ fontSize: '12px', color: 'primary.light', fontWeight: 700 }}>{f.practice}</TableCell>
+                                                <TableCell>{severityBadge(f.severity)}</TableCell>
+                                                <TableCell>
+                                                    <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '13px' }}>{f.title}</Typography>
+                                                    <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>{f.rule_violated}</Typography>
+                                                </TableCell>
+                                            </TableRow>
                                         ))}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {result.findings.map(f => (
-                                        <tr key={f.finding_id} style={{ borderBottom: "1px solid #f0f0f0" }}>
-                                            <td style={{ padding: "12px 16px", fontSize: "13px", fontWeight: "500", color: "#333" }}>{f.repository}</td>
-                                            <td style={{ padding: "12px 16px", fontSize: "13px", fontWeight: "600", color: "#333" }}>{f.practice}</td>
-                                            <td style={{ padding: "12px 16px", fontSize: "12px", fontFamily: "monospace", color: "#666" }}>{f.rule_violated}</td>
-                                            <td style={{ padding: "12px 16px" }}>{severityBadge(f.severity)}</td>
-                                            <td style={{ padding: "12px 16px", fontSize: "13px", color: "#555", maxWidth: "320px" }}>{f.description}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+                                    </TableBody>
+                                </Table>
+                            </Box>
+                        </Paper>
                     )}
-                </>
+                </Stack>
             )}
 
             {/* Footer Navigation */}
-            <div style={{ display: "flex", justifyContent: "space-between", marginTop: "40px", paddingTop: "24px", borderTop: "1px solid #e0e0e0" }}>
-                <button
+            <Stack direction="row" justifyContent="space-between" sx={{ mt: 6, pt: 4, borderTop: '1px solid', borderColor: 'divider' }}>
+                <Button
+                    startIcon={<ArrowBackIcon />}
                     onClick={() => navigate(`/audit/${auditId}/evidence`)}
-                    style={{ background: "none", border: "none", cursor: "pointer", color: "#666", fontSize: "14px", fontWeight: "600", display: "flex", alignItems: "center", gap: "8px" }}
+                    sx={{ color: 'text.secondary', fontWeight: 800 }}
                 >
-                    ← Volver a Evidencia
-                </button>
-                <button
-                    onClick={() => navigate(`/audit/${auditId}/findings`)}
+                    Volver a Evidencia
+                </Button>
+                <Button
+                    variant="contained"
                     disabled={!result}
-                    style={{
-                        backgroundColor: result ? "#2196F3" : "#ccc", color: "white", border: "none",
-                        padding: "12px 24px", borderRadius: "8px", cursor: result ? "pointer" : "not-allowed",
-                        fontWeight: "600", fontSize: "14px", display: "flex", alignItems: "center", gap: "8px",
-                    }}
+                    endIcon={<ArrowForwardIcon />}
+                    onClick={() => navigate(`/audit/${auditId}/findings`)}
+                    sx={{ borderRadius: '12px', py: 1.5, px: 4, fontWeight: 800 }}
                 >
-                    Continuar a Hallazgos →
-                </button>
-            </div>
-        </div>
+                    Continuar a Hallazgos
+                </Button>
+            </Stack>
+        </Box>
     );
 }

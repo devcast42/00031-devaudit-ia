@@ -1,7 +1,30 @@
 import { useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { AuditService, type Audit } from "../../services/audit.service";
+import {
+    Box,
+    Typography,
+    Button,
+    Grid,
+    Paper,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
+    Chip,
+    IconButton,
+    Avatar,
+    alpha,
+    Stack,
+    Pagination
+} from "@mui/material";
+import AddIcon from '@mui/icons-material/Add';
+import FilterListIcon from '@mui/icons-material/FilterList';
+import DeleteIcon from '@mui/icons-material/Delete';
+import AssignmentIcon from '@mui/icons-material/Assignment';
 import dayjs from "dayjs";
+import { AuditService, type Audit } from "../../services/audit.service";
 
 export function AuditListPage() {
     const navigate = useNavigate();
@@ -19,11 +42,9 @@ export function AuditListPage() {
                 setLoading(false);
             }
         };
-
         fetchAudits();
     }, []);
 
-    // Helper to format date
     const formatDate = (dateString: string) => {
         return dayjs(dateString).format("MMM D, YYYY h:mm A");
     };
@@ -48,254 +69,132 @@ export function AuditListPage() {
         }
     };
 
+    const stats = [
+        { label: "Auditorías Pendientes", value: audits.filter(a => a.status !== 'Completed').length, color: '#2563eb' },
+        { label: "Completadas", value: audits.filter(a => a.status === 'Completed').length, color: '#10b981' },
+        { label: "Total Proyectos", value: audits.length, color: '#6366f1' },
+    ];
+
     return (
-        <div style={{ padding: "40px 60px", maxWidth: "100%" }}>
+        <Box sx={{ p: { xs: 3, md: 6 }, maxWidth: 1400, mx: 'auto' }}>
             {/* Header */}
-            <div style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: "40px"
-            }}>
-                <h1 style={{ fontSize: "28px", fontWeight: "bold", color: "#1a1a1a" }}>Gestión de Auditorías</h1>
-                <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-                    <button
-                        onClick={() => navigate("/audit/new/scope")}
-                        style={{
-                            backgroundColor: "#2196F3",
-                            color: "white",
-                            border: "none",
-                            padding: "12px 24px",
-                            borderRadius: "8px",
-                            cursor: "pointer",
-                            fontWeight: "600",
-                            fontSize: "14px"
-                        }}>
-                        + Nueva Auditoría
-                    </button>
-                </div>
-            </div>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 6 }}>
+                <Box>
+                    <Typography variant="h4" sx={{ mb: 1 }}>Gestión de Auditorías</Typography>
+                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>Supervise y gestione el estado de sus evaluaciones de IA.</Typography>
+                </Box>
+                <Button
+                    variant="contained"
+                    startIcon={<AddIcon />}
+                    onClick={() => navigate("/audit/new/scope")}
+                >
+                    Nueva Auditoría
+                </Button>
+            </Box>
 
-            {/* Dashboard Overview */}
-            <h2 style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "20px", color: "#1a1a1a" }}>
-                Resumen del Panel
-            </h2>
+            {/* Stats Overview */}
+            <Box sx={{ mb: 6 }}>
+                <Typography variant="h6" sx={{ mb: 3 }}>Vista General</Typography>
+                <Grid container spacing={3}>
+                    {stats.map((stat, index) => (
+                        <Grid size={{ xs: 12, sm: 4 }} key={index}>
+                            <Paper sx={{ p: 4, position: 'relative', overflow: 'hidden' }}>
+                                <Box sx={{
+                                    position: 'absolute', top: -20, right: -20, width: 100, height: 100,
+                                    borderRadius: '50%', backgroundColor: alpha(stat.color, 0.1)
+                                }} />
+                                <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1, fontWeight: 500 }}>
+                                    {stat.label}
+                                </Typography>
+                                <Typography variant="h3" sx={{ fontWeight: 800 }}>
+                                    {stat.value}
+                                </Typography>
+                            </Paper>
+                        </Grid>
+                    ))}
+                </Grid>
+            </Box>
 
-            {/* Stats Cards */}
-            <div style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(3, 1fr)",
-                gap: "20px",
-                marginBottom: "40px"
-            }}>
-                <div style={{
-                    backgroundColor: "white",
-                    padding: "24px",
-                    borderRadius: "12px",
-                    boxShadow: "0 1px 3px rgba(0,0,0,0.1)"
-                }}>
-                    <div style={{ color: "#666", fontSize: "14px", marginBottom: "8px" }}>
-                        Auditorías Pendientes
-                    </div>
-                    <div style={{ fontSize: "36px", fontWeight: "bold", color: "#1a1a1a" }}>{audits.filter(a => a.status !== 'Completed').length}</div>
-                </div>
+            {/* Main Table Section */}
+            <Paper sx={{ mb: 4, borderRadius: '16px', overflow: 'hidden' }}>
+                <Box sx={{ p: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid', borderColor: 'divider' }}>
+                    <Typography variant="h6">Auditorías Recientes</Typography>
+                    <Stack direction="row" spacing={1}>
+                        <Button size="small" variant="outlined" startIcon={<FilterListIcon />} color="inherit">
+                            Filtrar
+                        </Button>
+                        <Button size="small" variant="outlined" color="inherit">
+                            Exportar
+                        </Button>
+                    </Stack>
+                </Box>
 
-                <div style={{
-                    backgroundColor: "white",
-                    padding: "24px",
-                    borderRadius: "12px",
-                    boxShadow: "0 1px 3px rgba(0,0,0,0.1)"
-                }}>
-                    <div style={{ color: "#666", fontSize: "14px", marginBottom: "8px" }}>
-                        Completadas (Año Actual)
-                    </div>
-                    <div style={{ fontSize: "36px", fontWeight: "bold", color: "#1a1a1a" }}>{audits.filter(a => a.status === 'Completed').length}</div>
-                </div>
-
-                <div style={{
-                    backgroundColor: "white",
-                    padding: "24px",
-                    borderRadius: "12px",
-                    boxShadow: "0 1px 3px rgba(0,0,0,0.1)"
-                }}>
-                    <div style={{ color: "#666", fontSize: "14px", marginBottom: "8px" }}>
-                        Total de Auditorías
-                    </div>
-                    <div style={{ fontSize: "36px", fontWeight: "bold", color: "#1a1a1a" }}>{audits.length}</div>
-                </div>
-            </div>
-
-            {/* Recent Audits Table */}
-            <div style={{ backgroundColor: "white", borderRadius: "12px", padding: "24px" }}>
-                <div style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: "20px"
-                }}>
-                    <h3 style={{ fontSize: "20px", fontWeight: "bold", color: "#1a1a1a" }}>Auditorías Recientes</h3>
-                    <div style={{ display: "flex", gap: "12px" }}>
-                        <button style={{
-                            padding: "8px 16px",
-                            border: "1px solid #e0e0e0",
-                            borderRadius: "6px",
-                            backgroundColor: "white",
-                            cursor: "pointer",
-                            color: "#333",
-                            fontWeight: "500"
-                        }}>
-                            🔍 Filtrar
-                        </button>
-                        <button style={{
-                            padding: "8px 16px",
-                            border: "1px solid #e0e0e0",
-                            borderRadius: "6px",
-                            backgroundColor: "white",
-                            cursor: "pointer",
-                            color: "#333",
-                            fontWeight: "500"
-                        }}>
-                            📥 Exportar
-                        </button>
-                    </div>
-                </div>
-
-                {/* Table */}
-                {loading ? (
-                    <div style={{ padding: "40px", textAlign: "center", color: "#666" }}>Cargando auditorías...</div>
-                ) : audits.length === 0 ? (
-                    <div style={{ padding: "40px", textAlign: "center", color: "#666" }}>No se encontraron auditorías. Cree una para comenzar.</div>
-                ) : (
-                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                        <thead>
-                            <tr style={{ borderBottom: "2px solid #f0f0f0" }}>
-                                <th style={{ textAlign: "left", padding: "12px", color: "#666", fontWeight: "600" }}>
-                                    Nombre de la Auditoría
-                                </th>
-                                <th style={{ textAlign: "left", padding: "12px", color: "#666", fontWeight: "600" }}>
-                                    Organización
-                                </th>
-                                <th style={{ textAlign: "left", padding: "12px", color: "#666", fontWeight: "600" }}>
-                                    Estándar
-                                </th>
-                                <th style={{ textAlign: "left", padding: "12px", color: "#666", fontWeight: "600" }}>
-                                    Estado
-                                </th>
-                                <th style={{ textAlign: "left", padding: "12px", color: "#666", fontWeight: "600" }}>
-                                    Última Actualización
-                                </th>
-                                <th style={{ textAlign: "left", padding: "12px", color: "#666", fontWeight: "600" }}>
-                                    Acciones
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {audits.map((audit) => (
-                                <tr key={audit.id} style={{ borderBottom: "1px solid #f0f0f0" }}>
-                                    <td style={{ padding: "16px" }}>
-                                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                                            <span>📄</span>
-                                            <span style={{ fontWeight: "600", color: "#1a1a1a" }}>{audit.name}</span>
-                                        </div>
-                                    </td>
-                                    <td style={{ padding: "16px", color: "#333" }}>{audit.organization}</td>
-                                    <td style={{ padding: "16px", color: "#333" }}>{audit.complianceStandard}</td>
-                                    <td style={{ padding: "16px" }}>
-                                        <span style={{
-                                            padding: "4px 12px",
-                                            borderRadius: "12px",
-                                            fontSize: "12px",
-                                            fontWeight: "600",
-                                            backgroundColor: audit.status === "Completed" ? "#e8f5e9" :
-                                                audit.status === "In Progress" ? "#e3f2fd" : "#f5f5f5",
-                                            color: audit.status === "Completed" ? "#2e7d32" :
-                                                status === "In Progress" ? "#1976d2" : "#666"
-                                        }}>
-                                            {audit.status === "Completed" ? "Completada" :
-                                                status === "In Progress" ? "En Progreso" : audit.status}
-                                        </span>
-                                    </td>
-                                    <td style={{ padding: "16px", color: "#666" }}>{formatDate(audit.updatedAt)}</td>
-                                    <td style={{ padding: "16px" }}>
-                                        <div style={{ display: "flex", gap: "8px" }}>
-                                            <button
+                <TableContainer>
+                    <Table sx={{ minWidth: 800 }}>
+                        <TableHead sx={{ bgcolor: alpha('#1e293b', 0.5) }}>
+                            <TableRow>
+                                <TableCell sx={{ color: 'text.secondary', fontWeight: 600 }}>Nombre de la Auditoría</TableCell>
+                                <TableCell sx={{ color: 'text.secondary', fontWeight: 600 }}>Organización</TableCell>
+                                <TableCell sx={{ color: 'text.secondary', fontWeight: 600 }}>Estándar</TableCell>
+                                <TableCell sx={{ color: 'text.secondary', fontWeight: 600 }}>Estado</TableCell>
+                                <TableCell sx={{ color: 'text.secondary', fontWeight: 600 }}>Última Actualización</TableCell>
+                                <TableCell align="right" sx={{ color: 'text.secondary', fontWeight: 600 }}>Acciones</TableCell>
+                            </TableRow>
+                        </TableHead>
+                        <TableBody>
+                            {loading ? (
+                                <TableRow><TableCell colSpan={6} align="center" sx={{ py: 8, color: 'text.secondary' }}>Cargando auditorías...</TableCell></TableRow>
+                            ) : audits.length === 0 ? (
+                                <TableRow><TableCell colSpan={6} align="center" sx={{ py: 8, color: 'text.secondary' }}>No se encontraron auditorías.</TableCell></TableRow>
+                            ) : audits.map((audit) => (
+                                <TableRow key={audit.id} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                                    <TableCell sx={{ py: 2.5 }}>
+                                        <Stack direction="row" spacing={2} alignItems="center">
+                                            <Avatar sx={{ width: 32, height: 32, bgcolor: alpha('#6366f1', 0.1), color: '#6366f1' }}>
+                                                <AssignmentIcon sx={{ fontSize: 18 }} />
+                                            </Avatar>
+                                            <Typography variant="body2" sx={{ fontWeight: 600 }}>{audit.name}</Typography>
+                                        </Stack>
+                                    </TableCell>
+                                    <TableCell sx={{ color: 'text.secondary' }}>{audit.organization}</TableCell>
+                                    <TableCell sx={{ color: 'text.secondary' }}>
+                                        <Chip label={audit.complianceStandard} size="small" variant="outlined" sx={{ borderRadius: '6px', fontSize: '11px' }} />
+                                    </TableCell>
+                                    <TableCell>
+                                        <Chip
+                                            label={audit.status === "Completed" ? "Completada" : audit.status === "In Progress" ? "En Progreso" : audit.status}
+                                            size="small"
+                                            color={audit.status === "Completed" ? "success" : audit.status === "In Progress" ? "primary" : "default"}
+                                            sx={{ borderRadius: '6px', fontWeight: 600, fontSize: '11px' }}
+                                        />
+                                    </TableCell>
+                                    <TableCell sx={{ color: 'text.secondary' }}>{formatDate(audit.updatedAt)}</TableCell>
+                                    <TableCell align="right">
+                                        <Stack direction="row" spacing={1} justifyContent="flex-end">
+                                            <Button
+                                                variant="contained"
+                                                size="small"
                                                 onClick={() => handleContinue(audit)}
-                                                style={{
-                                                    border: "1px solid #2196F3",
-                                                    backgroundColor: "white",
-                                                    color: "#2196F3",
-                                                    cursor: "pointer",
-                                                    fontSize: "12px",
-                                                    fontWeight: "600",
-                                                    padding: "6px 12px",
-                                                    borderRadius: "4px",
-                                                    display: "flex",
-                                                    alignItems: "center",
-                                                    gap: "4px"
-                                                }}
-                                                title="Continue Audit"
+                                                sx={{ px: 2, fontSize: '12px' }}
                                             >
-                                                ▶ Continuar
-                                            </button>
-                                            <button
-                                                onClick={(e) => handleDelete(e, audit.id)}
-                                                style={{
-                                                    border: "none",
-                                                    backgroundColor: "#ffebee",
-                                                    color: "#d32f2f",
-                                                    cursor: "pointer",
-                                                    fontSize: "14px",
-                                                    padding: "6px 10px",
-                                                    borderRadius: "4px"
-                                                }}
-                                                title="Delete Audit"
-                                            >
-                                                🗑️
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
+                                                Continuar
+                                            </Button>
+                                            <IconButton size="small" color="error" onClick={(e) => handleDelete(e, audit.id)} sx={{ opacity: 0.7, '&:hover': { opacity: 1 } }}>
+                                                <DeleteIcon fontSize="small" />
+                                            </IconButton>
+                                        </Stack>
+                                    </TableCell>
+                                </TableRow>
                             ))}
-                        </tbody>
-                    </table>
-                )}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
 
-                {/* Pagination */}
-                <div style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginTop: "20px",
-                    color: "#666",
-                    fontSize: "14px"
-                }}>
-                    <div>Mostrando {audits.length} resultados</div>
-                    <div style={{ display: "flex", gap: "8px" }}>
-                        <button style={{
-                            padding: "8px 16px",
-                            border: "1px solid #e0e0e0",
-                            borderRadius: "6px",
-                            backgroundColor: "white",
-                            cursor: "pointer",
-                            color: "#333",
-                            fontWeight: "500"
-                        }}>
-                            Anterior
-                        </button>
-                        <button style={{
-                            padding: "8px 16px",
-                            border: "1px solid #e0e0e0",
-                            borderRadius: "6px",
-                            backgroundColor: "white",
-                            cursor: "pointer",
-                            color: "#333",
-                            fontWeight: "500"
-                        }}>
-                            Siguiente
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
+                <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>Mostrando {audits.length} resultados</Typography>
+                    <Pagination count={1} size="small" shape="rounded" color="primary" />
+                </Box>
+            </Paper>
+        </Box>
     );
 }

@@ -1,5 +1,33 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import {
+    Box,
+    Typography,
+    TextField,
+    Button,
+    Paper,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
+    Checkbox,
+    alpha,
+    Stack,
+    InputAdornment,
+    CircularProgress,
+    Chip,
+    IconButton,
+    Tooltip
+} from "@mui/material";
+import SearchIcon from '@mui/icons-material/Search';
+import GitHubIcon from '@mui/icons-material/GitHub';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import VerifiedIcon from '@mui/icons-material/Verified';
+import CodeIcon from '@mui/icons-material/Code';
 import client from "../../app/api";
 
 export function EvidenceStep() {
@@ -13,13 +41,12 @@ export function EvidenceStep() {
     const [selectedRepoIds, setSelectedRepoIds] = useState<Set<number>>(new Set());
     const [searchQuery, setSearchQuery] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 10;
+    const itemsPerPage = 8;
 
     useEffect(() => {
         const code = searchParams.get("code");
         const state = searchParams.get("state");
 
-        // If we have a code and state that points to a different audit, redirect to it
         if (code && state && state !== auditId) {
             navigate(`/audit/${state}/evidence?code=${code}&state=${state}`, { replace: true });
             return;
@@ -32,7 +59,6 @@ export function EvidenceStep() {
         }
     }, [searchParams, auditId, navigate, isConnecting, isConnected]);
 
-    // Reset pagination when search changes
     useEffect(() => {
         setCurrentPage(1);
     }, [searchQuery]);
@@ -49,7 +75,6 @@ export function EvidenceStep() {
             setRepos(response.data);
         } catch (error) {
             console.error("Failed to fetch repositories:", error);
-            // If token is invalid, clear it
             if ((error as any).response?.status === 401) {
                 localStorage.removeItem("github_token");
                 setIsConnected(false);
@@ -62,7 +87,6 @@ export function EvidenceStep() {
     const handleExchangeToken = async (code: string) => {
         setIsConnecting(true);
         try {
-            // We MUST use exactly the same redirectUri that was sent to GitHub in handleGitHubConnect
             const stableRedirectUri = window.location.origin + "/audit/new/evidence";
             const response = await client.post("/auth/github/token", {
                 code,
@@ -72,29 +96,23 @@ export function EvidenceStep() {
             if (access_token) {
                 localStorage.setItem("github_token", access_token);
                 setIsConnected(true);
-                // Clear the parameters from URL
                 searchParams.delete("code");
                 searchParams.delete("state");
                 setSearchParams(searchParams);
-                alert("¡Conectado exitosamente a GitHub!");
             }
         } catch (error) {
             console.error("Failed to exchange GitHub token:", error);
-            alert("Falló la conexión a GitHub. Por favor intente de nuevo.");
         } finally {
             setIsConnecting(false);
         }
     };
 
     const handleGitHubConnect = () => {
-        const clientId = "Ov23licfhgwxbYZkH0Ll"; // Found in backend .env
-        // Use a stable path for GitHub registration compatibility
+        const clientId = "Ov23licfhgwxbYZkH0Ll";
         const stableRedirectUri = window.location.origin + "/audit/new/evidence";
         const scope = "repo,user";
-        // Use the state parameter to carry the auditId through the OAuth flow
         const state = auditId || "new";
         const authUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(stableRedirectUri)}&scope=${scope}&state=${state}`;
-
         window.location.href = authUrl;
     };
 
@@ -114,16 +132,14 @@ export function EvidenceStep() {
     );
 
     const toggleAllRepos = () => {
-        const allFilteredIds = filteredRepos.map(r => r.id);
-        const allSelected = allFilteredIds.every(id => selectedRepoIds.has(id));
+        const allFilteredIds = paginatedRepos.map((r: any) => r.id);
+        const allSelected = allFilteredIds.every((id: number) => selectedRepoIds.has(id));
 
         const newSelection = new Set(selectedRepoIds);
-        if (allSelected && filteredRepos.length > 0) {
-            // Unselect all currently filtered items
-            allFilteredIds.forEach(id => newSelection.delete(id));
+        if (allSelected && paginatedRepos.length > 0) {
+            allFilteredIds.forEach((id: number) => newSelection.delete(id));
         } else {
-            // Select all currently filtered items
-            allFilteredIds.forEach(id => newSelection.add(id));
+            allFilteredIds.forEach((id: number) => newSelection.add(id));
         }
         setSelectedRepoIds(newSelection);
     };
@@ -142,19 +158,15 @@ export function EvidenceStep() {
             return;
         }
 
-        // Get the selected repos with their full details
-        const selectedRepos = repos.filter(r => selectedRepoIds.has(r.id));
+        const selectedRepos = repos.filter((r: any) => selectedRepoIds.has(r.id));
         const token = localStorage.getItem("github_token");
 
-        if (!token) {
-            alert("Token de GitHub no encontrado. Por favor reconecte.");
-            return;
-        }
+        if (!token) return;
 
         setIsCollectingMetrics(true);
         try {
             await client.post(`/audits/${auditId}/collect-metrics`, {
-                repositories: selectedRepos.map(r => ({
+                repositories: selectedRepos.map((r: any) => ({
                     id: r.id,
                     name: r.name,
                     full_name: r.full_name,
@@ -162,269 +174,279 @@ export function EvidenceStep() {
             }, {
                 headers: { Authorization: `Bearer ${token}` },
             });
-
             navigate(`/audit/${auditId}/analysis`);
         } catch (error) {
             console.error("Failed to collect metrics:", error);
-            alert("Falló la recolección de métricas del repositorio. Por favor intente de nuevo.");
         } finally {
             setIsCollectingMetrics(false);
         }
     };
 
     return (
-        <div style={{ width: "100%", maxWidth: "1100px", margin: "0 auto" }}>
-            {/* Step Info */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "8px" }}>
-                <div>
-                    <div style={{ fontSize: "12px", fontWeight: "bold", color: "#2196F3", textTransform: "uppercase", marginBottom: "4px" }}>
-                        Paso 2 de 5 • Recolección de Evidencia
-                    </div>
-                    <h2 style={{ fontSize: "28px", fontWeight: "bold", color: "#1a1a1a", margin: 0 }}>
-                        Repositorios de Evidencia
-                    </h2>
-                </div>
-                <div style={{ textAlign: "right" }}>
-                    <div style={{ fontSize: "14px", fontWeight: "bold", color: "#1a1a1a", marginBottom: "4px" }}>33% Completado</div>
-                    <div style={{ width: "200px", height: "6px", backgroundColor: "#e0e0e0", borderRadius: "3px" }}>
-                        <div style={{ width: "33%", height: "100%", backgroundColor: "#2196F3", borderRadius: "3px" }} />
-                    </div>
-                </div>
-            </div>
+        <Box sx={{ width: "100%", maxWidth: "1100px", mx: "auto" }}>
+            {/* Header Section */}
+            <Box sx={{ mb: 4 }}>
+                <Stack direction="row" justifyContent="space-between" alignItems="flex-end" sx={{ mb: 1 }}>
+                    <Box>
+                        <Typography variant="overline" sx={{ fontWeight: 800, color: 'primary.main', letterSpacing: '0.1em' }}>
+                            Paso 2 de 5 • Recolección de Evidencia
+                        </Typography>
+                        <Typography variant="h4" sx={{ fontWeight: 800, mt: 0.5 }}>
+                            Repositorios de Evidencia
+                        </Typography>
+                    </Box>
+                    <Box sx={{ textAlign: "right", display: { xs: 'none', sm: 'block' } }}>
+                        <Typography variant="caption" sx={{ fontWeight: 800, color: 'text.secondary', textTransform: 'uppercase' }}>
+                            33% Completado
+                        </Typography>
+                        <Box sx={{ width: "200px", height: "6px", bgcolor: alpha('#fff', 0.1), borderRadius: "3px", mt: 1, overflow: 'hidden' }}>
+                            <Box sx={{ width: "33%", height: "100%", bgcolor: "primary.main" }} />
+                        </Box>
+                    </Box>
+                </Stack>
+            </Box>
 
-            <div style={{ height: "1px", backgroundColor: "#e0e0e0", margin: "24px 0" }} />
-
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px", gap: "20px" }}>
-                <div style={{ flex: 1, position: "relative" }}>
-                    <input
-                        type="text"
+            {/* Controls Section */}
+            <Paper sx={{
+                p: 3,
+                mb: 3,
+                borderRadius: '16px',
+                bgcolor: alpha('#1e293b', 0.4),
+                border: '1px solid',
+                borderColor: 'divider',
+                backdropFilter: 'blur(20px)',
+            }}>
+                <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center">
+                    <TextField
+                        fullWidth
                         placeholder="Buscar repositorios por nombre..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         disabled={!isConnected}
-                        style={{
-                            width: "100%",
-                            padding: "10px 16px",
-                            paddingLeft: "40px",
-                            borderRadius: "8px",
-                            border: "1px solid #e0e0e0",
-                            fontSize: "14px",
-                            outline: "none",
-                            backgroundColor: isConnected ? "white" : "#f5f5f5"
+                        size="small"
+                        InputProps={{
+                            startAdornment: (
+                                <InputAdornment position="start">
+                                    <SearchIcon sx={{ color: 'text.secondary', fontSize: 20 }} />
+                                </InputAdornment>
+                            ),
+                        }}
+                        sx={{
+                            '& .MuiOutlinedInput-root': {
+                                bgcolor: alpha('#0f172a', 0.3),
+                                borderRadius: '10px'
+                            }
                         }}
                     />
-                    <span style={{ position: "absolute", left: "14px", top: "10px", color: "#999" }}>🔍</span>
-                </div>
-                <div style={{ display: "flex", gap: "12px" }}>
-                    <button
-                        onClick={handleGitHubConnect}
-                        disabled={isConnecting}
-                        style={{
-                            padding: "8px 16px",
-                            border: "1px solid #e0e0e0",
-                            borderRadius: "6px",
-                            backgroundColor: isConnected ? "#E8F5E9" : "white",
-                            cursor: "pointer",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "8px",
-                            color: isConnected ? "#4CAF50" : "#333",
-                            fontWeight: "600"
-                        }}
-                    >
-                        <span>{isConnecting ? "Conectando..." : isConnected ? "✓ Conectado a GitHub" : "Conectar a GitHub"}</span>
-                    </button>
-                    <button
-                        onClick={() => isConnected && fetchRepositories()}
-                        disabled={!isConnected || isLoadingRepos}
-                        style={{ padding: "8px 16px", border: "1px solid #e0e0e0", borderRadius: "6px", backgroundColor: "white", cursor: isConnected ? "pointer" : "not-allowed", display: "flex", alignItems: "center", gap: "8px", color: "#333", fontWeight: "500", opacity: isConnected ? 1 : 0.5 }}>
-                        <span>Actualizar</span>
-                    </button>
-                </div>
-            </div>
+                    <Stack direction="row" spacing={1.5} sx={{ width: { xs: '100%', md: 'auto' } }}>
+                        <Button
+                            variant={isConnected ? "text" : "contained"}
+                            onClick={handleGitHubConnect}
+                            disabled={isConnecting}
+                            startIcon={isConnected ? <VerifiedIcon /> : <GitHubIcon />}
+                            sx={{
+                                whiteSpace: 'nowrap',
+                                borderRadius: '10px',
+                                fontWeight: 700,
+                                bgcolor: isConnected ? alpha('#4caf50', 0.1) : undefined,
+                                color: isConnected ? '#4caf50' : undefined,
+                                px: 3
+                            }}
+                        >
+                            {isConnecting ? "Conectando..." : isConnected ? "Conectado" : "Conectar GitHub"}
+                        </Button>
+                        <Tooltip title="Actualizar lista">
+                            <IconButton
+                                onClick={() => isConnected && fetchRepositories()}
+                                disabled={!isConnected || isLoadingRepos}
+                                sx={{
+                                    bgcolor: alpha('#fff', 0.05),
+                                    border: '1px solid',
+                                    borderColor: 'divider',
+                                    borderRadius: '10px'
+                                }}
+                            >
+                                {isLoadingRepos ? <CircularProgress size={20} /> : <RefreshIcon fontSize="small" />}
+                            </IconButton>
+                        </Tooltip>
+                    </Stack>
+                </Stack>
+            </Paper>
 
-            {/* Table Container */}
-            <div style={{ backgroundColor: "white", borderRadius: "12px", border: "1px solid #e0e0e0", overflow: "hidden" }}>
-                {!isConnected ? (
-                    <div style={{ padding: "60px", textAlign: "center", color: "#666" }}>
-                        <div style={{ fontSize: "40px", marginBottom: "16px" }}>🐙</div>
-                        <h3 style={{ margin: "0 0 8px 0", color: "#333" }}>Se Requiere Conexión a GitHub</h3>
-                        <p style={{ margin: 0, fontSize: "14px" }}>Conecte su cuenta para seleccionar repositorios para esta auditoría.</p>
-                    </div>
-                ) : isLoadingRepos ? (
-                    <div style={{ padding: "60px", textAlign: "center", color: "#666" }}>
-                        <div style={{ marginBottom: "16px" }}>Cargando repositorios...</div>
-                    </div>
-                ) : filteredRepos.length === 0 ? (
-                    <div style={{ padding: "60px", textAlign: "center", color: "#666" }}>
-                        <h3 style={{ margin: "0 0 8px 0", color: "#333" }}>No se encontraron repositorios</h3>
-                        <p style={{ margin: 0, fontSize: "14px" }}>{searchQuery ? "Ningún resultado coincide con su búsqueda." : "No pudimos encontrar ningún repositorio en su cuenta de GitHub."}</p>
-                    </div>
-                ) : (
-                    <>
-                        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                            <thead>
-                                <tr style={{ borderBottom: "1px solid #e0e0e0", backgroundColor: "#fafafa" }}>
-                                    <th style={{ textAlign: "left", padding: "16px", width: "40px" }}>
-                                        <input
-                                            type="checkbox"
-                                            checked={filteredRepos.length > 0 && filteredRepos.every(id => selectedRepoIds.has(id.id))}
-                                            onChange={toggleAllRepos}
-                                            style={{ cursor: "pointer" }}
+            {/* Table Section */}
+            <TableContainer component={Paper} sx={{
+                borderRadius: '20px',
+                bgcolor: alpha('#1e293b', 0.4),
+                border: '1px solid',
+                borderColor: 'divider',
+                backdropFilter: 'blur(20px)',
+                minHeight: '400px',
+                mb: 4
+            }}>
+                <Table sx={{ minWidth: 650 }}>
+                    <TableHead>
+                        <TableRow sx={{ bgcolor: alpha('#1e293b', 0.6) }}>
+                            <TableCell padding="checkbox">
+                                <Checkbox
+                                    indeterminate={selectedRepoIds.size > 0 && selectedRepoIds.size < paginatedRepos.length}
+                                    checked={paginatedRepos.length > 0 && paginatedRepos.every(r => selectedRepoIds.has(r.id))}
+                                    onChange={toggleAllRepos}
+                                    sx={{ color: alpha('#fff', 0.3) }}
+                                />
+                            </TableCell>
+                            <TableCell sx={{ fontWeight: 800, color: 'text.secondary', textTransform: 'uppercase', fontSize: '11px', letterSpacing: '0.05em' }}>Repositorio</TableCell>
+                            <TableCell sx={{ fontWeight: 800, color: 'text.secondary', textTransform: 'uppercase', fontSize: '11px', letterSpacing: '0.05em' }}>Lenguaje</TableCell>
+                            <TableCell sx={{ fontWeight: 800, color: 'text.secondary', textTransform: 'uppercase', fontSize: '11px', letterSpacing: '0.05em' }}>Actualización</TableCell>
+                            <TableCell sx={{ fontWeight: 800, color: 'text.secondary', textTransform: 'uppercase', fontSize: '11px', letterSpacing: '0.05em' }}>Rama</TableCell>
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        {!isConnected ? (
+                            <TableRow>
+                                <TableCell colSpan={5} sx={{ py: 10, textAlign: 'center' }}>
+                                    <Box sx={{ opacity: 0.5 }}>
+                                        <GitHubIcon sx={{ fontSize: 48, mb: 2 }} />
+                                        <Typography variant="h6" sx={{ fontWeight: 700 }}>Se requiere conexión a GitHub</Typography>
+                                        <Typography variant="body2">Conecte su cuenta para seleccionar repositorios para esta auditoría.</Typography>
+                                    </Box>
+                                </TableCell>
+                            </TableRow>
+                        ) : isLoadingRepos ? (
+                            <TableRow>
+                                <TableCell colSpan={5} sx={{ py: 10, textAlign: 'center' }}>
+                                    <CircularProgress size={32} sx={{ mb: 2 }} />
+                                    <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 600 }}>Cargando repositorios...</Typography>
+                                </TableCell>
+                            </TableRow>
+                        ) : paginatedRepos.length === 0 ? (
+                            <TableRow>
+                                <TableCell colSpan={5} sx={{ py: 10, textAlign: 'center' }}>
+                                    <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 600 }}>No se encontraron repositorios.</Typography>
+                                </TableCell>
+                            </TableRow>
+                        ) : (
+                            paginatedRepos.map((repo) => (
+                                <TableRow
+                                    key={repo.id}
+                                    hover
+                                    sx={{
+                                        '&:hover': { bgcolor: alpha('#2563eb', 0.05) },
+                                        transition: 'background-color 0.2s',
+                                        bgcolor: selectedRepoIds.has(repo.id) ? alpha('#2563eb', 0.03) : 'transparent'
+                                    }}
+                                >
+                                    <TableCell padding="checkbox">
+                                        <Checkbox
+                                            checked={selectedRepoIds.has(repo.id)}
+                                            onChange={() => toggleRepoSelection(repo.id)}
                                         />
-                                    </th>
-                                    <th style={{ textAlign: "left", padding: "16px", fontSize: "12px", fontWeight: "700", color: "#999", textTransform: "uppercase" }}>Nombre del Repositorio</th>
-                                    <th style={{ textAlign: "left", padding: "16px", fontSize: "12px", fontWeight: "700", color: "#999", textTransform: "uppercase" }}>Lenguaje Principal</th>
-                                    <th style={{ textAlign: "left", padding: "16px", fontSize: "12px", fontWeight: "700", color: "#999", textTransform: "uppercase" }}>Última Actualización</th>
-                                    <th style={{ textAlign: "left", padding: "16px", fontSize: "12px", fontWeight: "700", color: "#999", textTransform: "uppercase" }}>Rama Predeterminada</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {paginatedRepos.map((repo) => (
-                                    <tr key={repo.id} style={{ borderBottom: "1px solid #f0f0f0" }}>
-                                        <td style={{ padding: "16px" }}>
-                                            <input
-                                                type="checkbox"
-                                                checked={selectedRepoIds.has(repo.id)}
-                                                onChange={() => toggleRepoSelection(repo.id)}
-                                                style={{ cursor: "pointer" }}
-                                            />
-                                        </td>
-                                        <td style={{ padding: "16px" }}>
-                                            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                                                <div style={{ width: "36px", height: "36px", borderRadius: "8px", backgroundColor: "#f5f5f5", display: "flex", alignItems: "center", justifyContent: "center", border: "1px solid #eee", fontSize: "18px" }}>
-                                                    💻
-                                                </div>
-                                                <div>
-                                                    <div style={{ fontWeight: "600", color: "#1a1a1a", fontSize: "14px" }}>{repo.name}</div>
-                                                    <div style={{ fontSize: "12px", color: "#999" }}>{repo.full_name}</div>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td style={{ padding: "16px" }}>
-                                            <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px", color: "#333" }}>
-                                                {repo.language || "N/A"}
-                                            </div>
-                                        </td>
-                                        <td style={{ padding: "16px", fontSize: "14px", color: "#666" }}>
-                                            {new Date(repo.updated_at).toLocaleDateString()}
-                                        </td>
-                                        <td style={{ padding: "16px" }}>
-                                            <span style={{
-                                                padding: "4px 12px",
-                                                borderRadius: "12px",
-                                                fontSize: "12px",
-                                                fontWeight: "500",
-                                                color: "#666",
-                                                backgroundColor: "#f0f0f0"
+                                    </TableCell>
+                                    <TableCell>
+                                        <Stack direction="row" spacing={2} alignItems="center">
+                                            <Box sx={{
+                                                width: 36, height: 36, borderRadius: '8px',
+                                                bgcolor: alpha('#fff', 0.05), border: '1px solid', borderColor: 'divider',
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center'
                                             }}>
-                                                {repo.default_branch}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                                <CodeIcon sx={{ fontSize: 18, color: 'primary.light' }} />
+                                            </Box>
+                                            <Box>
+                                                <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary' }}>{repo.name}</Typography>
+                                                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>{repo.full_name}</Typography>
+                                            </Box>
+                                        </Stack>
+                                    </TableCell>
+                                    <TableCell>
+                                        {repo.language && (
+                                            <Chip
+                                                label={repo.language}
+                                                size="small"
+                                                sx={{
+                                                    height: 20, fontSize: '10px', fontWeight: 800,
+                                                    bgcolor: alpha('#fff', 0.05), color: 'text.secondary', border: '1px solid', borderColor: 'divider'
+                                                }}
+                                            />
+                                        )}
+                                    </TableCell>
+                                    <TableCell>
+                                        <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>
+                                            {new Date(repo.updated_at).toLocaleDateString()}
+                                        </Typography>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Chip
+                                            label={repo.default_branch}
+                                            size="small"
+                                            variant="outlined"
+                                            sx={{
+                                                height: 20, fontSize: '10px', fontWeight: 800,
+                                                borderColor: (theme) => alpha(theme.palette.primary.main, 0.3), color: 'primary.light'
+                                            }}
+                                        />
+                                    </TableCell>
+                                </TableRow>
+                            ))
+                        )}
+                    </TableBody>
+                </Table>
 
-                        {/* Pagination Bar */}
-                        <div style={{
-                            padding: "12px 16px",
-                            borderTop: "1px solid #e0e0e0",
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            backgroundColor: "#fafafa"
-                        }}>
-                            <div style={{ fontSize: "13px", color: "#666" }}>
-                                Mostrando {Math.min(filteredRepos.length, (currentPage - 1) * itemsPerPage + 1)} a {Math.min(filteredRepos.length, currentPage * itemsPerPage)} de {filteredRepos.length} repositorios
-                            </div>
-                            <div style={{ display: "flex", gap: "8px" }}>
-                                <button
-                                    disabled={currentPage === 1}
-                                    onClick={() => setCurrentPage(p => p - 1)}
-                                    style={{
-                                        padding: "6px 12px",
-                                        borderRadius: "6px",
-                                        border: "1px solid #e0e0e0",
-                                        backgroundColor: currentPage === 1 ? "#f5f5f5" : "white",
-                                        cursor: currentPage === 1 ? "not-allowed" : "pointer",
-                                        fontSize: "13px",
-                                        color: "#333"
-                                    }}
-                                >
-                                    Anterior
-                                </button>
-                                <div style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "13px", fontWeight: "600", color: "#333", padding: "0 8px" }}>
-                                    Página {currentPage} de {totalPages}
-                                </div>
-                                <button
-                                    disabled={currentPage === totalPages || totalPages === 0}
-                                    onClick={() => setCurrentPage(p => p + 1)}
-                                    style={{
-                                        padding: "6px 12px",
-                                        borderRadius: "6px",
-                                        border: "1px solid #e0e0e0",
-                                        backgroundColor: (currentPage === totalPages || totalPages === 0) ? "#f5f5f5" : "white",
-                                        cursor: (currentPage === totalPages || totalPages === 0) ? "not-allowed" : "pointer",
-                                        fontSize: "13px",
-                                        color: "#333"
-                                    }}
-                                >
-                                    Siguiente
-                                </button>
-                            </div>
-                        </div>
-                    </>
+                {/* Pagination */}
+                {totalPages > 1 && (
+                    <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider', bgcolor: alpha('#1e293b', 0.2) }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>
+                            Página {currentPage} de {totalPages}
+                        </Typography>
+                        <Stack direction="row" spacing={1}>
+                            <Button
+                                size="small"
+                                disabled={currentPage === 1}
+                                onClick={() => setCurrentPage(p => p - 1)}
+                                sx={{ borderRadius: '8px', fontWeight: 800 }}
+                            >
+                                Anterior
+                            </Button>
+                            <Button
+                                size="small"
+                                disabled={currentPage === totalPages}
+                                onClick={() => setCurrentPage(p => p + 1)}
+                                sx={{ borderRadius: '8px', fontWeight: 800 }}
+                            >
+                                Siguiente
+                            </Button>
+                        </Stack>
+                    </Stack>
                 )}
-            </div>
-
-            {/* Selection Info */}
-            {
-                isConnected && repos.length > 0 && (
-                    <div style={{ marginTop: "16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <div style={{ fontSize: "14px", color: "#666", fontWeight: "500" }}>
-                            {selectedRepoIds.size} repositorios seleccionados para auditoría.
-                        </div>
-                    </div>
-                )
-            }
+            </TableContainer>
 
             {/* Footer Navigation */}
-            <div style={{
-                display: "flex",
-                justifyContent: "space-between",
-                marginTop: "40px",
-                paddingTop: "24px",
-                borderTop: "1px solid #e0e0e0"
-            }}>
-                <button
-                    onClick={() => navigate(`/audit/new/scope`)}
-                    style={{ background: "none", border: "none", cursor: "pointer", color: "#666", fontSize: "14px", fontWeight: "600", display: "flex", alignItems: "center", gap: "8px" }}
+            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 4, pt: 4, borderTop: '1px solid', borderColor: 'divider' }}>
+                <Button
+                    onClick={() => navigate(`/audit/${auditId}/scope`)}
+                    startIcon={<ArrowBackIcon />}
+                    sx={{ color: 'text.secondary', fontWeight: 800 }}
                 >
-                    ← Volver a Configuración
-                </button>
-                <div style={{ display: "flex", gap: "16px", alignItems: "center" }}>
-                    <button
+                    Volver al Alcance
+                </Button>
+                <Stack direction="row" spacing={3} alignItems="center">
+                    {selectedRepoIds.size > 0 && (
+                        <Typography variant="caption" sx={{ fontWeight: 800, color: 'text.secondary', textTransform: 'uppercase' }}>
+                            {selectedRepoIds.size} Repositorios Seleccionados
+                        </Typography>
+                    )}
+                    <Button
+                        variant="contained"
                         onClick={handleContinue}
                         disabled={selectedRepoIds.size === 0 || isCollectingMetrics}
-                        style={{
-                            backgroundColor: (selectedRepoIds.size > 0 && !isCollectingMetrics) ? "#2196F3" : "#ccc",
-                            color: "white",
-                            border: "none",
-                            padding: "12px 24px",
-                            borderRadius: "8px",
-                            cursor: (selectedRepoIds.size > 0 && !isCollectingMetrics) ? "pointer" : "not-allowed",
-                            fontWeight: "600",
-                            fontSize: "14px",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "8px"
+                        endIcon={!isCollectingMetrics && <ArrowForwardIcon />}
+                        sx={{
+                            py: 1.5, px: 4, borderRadius: '12px', fontWeight: 800,
+                            boxShadow: `0 8px 20px ${alpha('#2563eb', 0.3)}`
                         }}
                     >
-                        {isCollectingMetrics ? "Recolectando Métricas..." : "Continuar a Análisis →"}
-                    </button>
-                </div>
-            </div>
-        </div >
+                        {isCollectingMetrics ? "Recolectando Métricas..." : "Continuar a Análisis"}
+                    </Button>
+                </Stack>
+            </Stack>
+        </Box>
     );
 }

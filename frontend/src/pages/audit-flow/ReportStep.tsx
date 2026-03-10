@@ -1,15 +1,56 @@
-import { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, Fragment } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import {
+    Box,
+    Typography,
+    Button,
+    Paper,
+    Tabs,
+    Tab,
+    Divider,
+    LinearProgress,
+    Stack,
+    alpha,
+    Alert,
+    CircularProgress,
+    Grid,
+    Card,
+    CardContent,
+    Chip,
+    Dialog,
+    DialogContent,
+    DialogActions,
+    Table,
+    TableHead,
+    TableBody,
+    TableRow,
+    TableCell,
+} from "@mui/material";
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import LockIcon from '@mui/icons-material/Lock';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
+import DescriptionIcon from '@mui/icons-material/Description';
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import BusinessIcon from '@mui/icons-material/Business';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import VerifiedIcon from '@mui/icons-material/Verified';
+import AssessmentIcon from '@mui/icons-material/Assessment';
 import client from "../../app/api";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
-import { PieChart, BarChart } from "@mui/x-charts";
+import { asBlob } from 'html-docx-js-typescript';
+import { saveAs } from 'file-saver';
+import { ThemeProvider } from '@mui/material/styles';
+import { lightTheme } from "../../styles/theme";
+
 
 // ─── Interfaces ────────────────────────────────────────────────────────────────
-
+// (Keeping existing interfaces as they are correct)
 interface ReportMetadata { report_id: string; audit_id: string; generated_at: string; generated_by: string; status: "draft" | "finalized"; version: number; }
 interface CoverPage { audit_name: string; organization: string; review_period: string; standard_used: string; issue_date: string; report_version: number; status: string; repositories_count: number; repositories: string[]; }
-interface ExecutiveSummary { global_maturity_level: string; global_maturity_numeric: number; maturity_interpretation: string; principal_risks: string[]; organizational_impact: string; severity_summary: { high: number; medium: number; low: number; total: number }; general_recommendation: string; }
+interface ExecutiveSummary { global_maturity_level: string; global_compliance_percentage: number; maturity_interpretation: string; principal_risks: string[]; organizational_impact: string; severity_summary: { high: number; medium: number; low: number; total: number }; general_recommendation: string; }
 interface PracticeRuleDetail { rule_id: string; title: string; passed: boolean; detail: string; standard_reference: string; }
 interface PracticeDetailSection { practice_code: string; practice_name: string; score: number; max_score: number; maturity_level: string; rules_passed: PracticeRuleDetail[]; rules_failed: PracticeRuleDetail[]; associated_findings_count: number; aggregated_risk: string; technical_explanation: string; }
 interface FindingsMatrixEntry { id: string; practice: string; repository: string; severity: string; title: string; description: string; evidence: Record<string, string | number | boolean>; rule_violated: string; standard_reference: string; impact: string; recommendation: string; status: string; }
@@ -118,87 +159,244 @@ export function ReportStep() {
         } catch (e) { console.error(e); }
     };
 
-    const handleExportWord = () => {
-        alert("Word export is being upgraded.");
+    const handleExportWord = async () => {
+        if (!printRef.current) return;
+        try {
+            const element = printRef.current;
+            element.style.display = "block";
+
+            // Create a clone to manipulate for Word export
+            const clone = element.cloneNode(true) as HTMLElement;
+            element.style.display = "none";
+
+            // Transformation: Replace modern Grids/Stacks with tables for Word compatibility
+            const grids = clone.querySelectorAll('.MuiGrid-container');
+            grids.forEach(grid => {
+                const table = document.createElement('table');
+                table.style.width = '100%';
+                table.style.borderCollapse = 'collapse';
+                table.style.marginBottom = '20px';
+
+                const tr = document.createElement('tr');
+                const items = grid.querySelectorAll('.MuiGrid-item, [class*="MuiGrid-grid-"]');
+
+                items.forEach(item => {
+                    const td = document.createElement('td');
+                    td.style.verticalAlign = 'top';
+                    td.style.padding = '10px';
+                    // Simple logic for 2-column layout usually found in our report
+                    td.style.width = items.length > 1 ? `${Math.floor(100 / items.length)}%` : '100%';
+                    td.innerHTML = item.innerHTML;
+                    tr.appendChild(td);
+                });
+
+                table.appendChild(tr);
+                grid.parentNode?.replaceChild(table, grid);
+            });
+
+            // Specific Fix for standardized Tables (like Findings Matrix)
+            const tables = clone.querySelectorAll('table');
+            tables.forEach(table => {
+                table.style.width = '100%';
+                table.style.border = '1px solid #e2e8f0';
+                table.style.tableLayout = 'fixed';
+
+                const rows = table.querySelectorAll('tr');
+                rows.forEach(row => {
+                    const cells = row.querySelectorAll('th, td');
+                    if (cells.length === 5) { // Match Findings matrix
+                        const widths = ['10%', '15%', '35%', '20%', '20%'];
+                        cells.forEach((cell, idx) => {
+                            (cell as HTMLElement).setAttribute('width', widths[idx]);
+                            (cell as HTMLElement).style.width = widths[idx];
+                            (cell as HTMLElement).style.wordWrap = 'break-word';
+                            (cell as HTMLElement).style.wordBreak = 'break-all';
+                        });
+                    }
+                });
+            });
+
+            const html = clone.innerHTML;
+
+            const fullHtml = `
+            <!DOCTYPE html>
+            <html>
+                <head>
+                    <meta charset="utf-8">
+                    <title>Informe de Auditoría Professional</title>
+                    <style>
+                        * { box-sizing: border-box; }
+                        body { 
+                            font-family: 'Arial', sans-serif; 
+                            line-height: 1.3;
+                            color: #333;
+                            padding: 24pt;
+                            font-size: 10pt;
+                            width: 100%;
+                        }
+                        h1, h2, h3 { color: #2563eb; margin-top: 15pt; margin-bottom: 8pt; }
+                        table { width: 100%; border: 1px solid #ddd; border-collapse: collapse; margin-bottom: 15pt; table-layout: fixed; }
+                        th, td { border: 1px solid #ddd; padding: 4pt; text-align: left; vertical-align: top; word-wrap: break-word; word-break: break-all; }
+                        th { background-color: #f8fafc; font-weight: bold; color: #475569; }
+                        .MuiTypography-root { margin-bottom: 5pt; }
+                        .MuiPaper-root, .MuiCard-root { border: 1px solid #eee; padding: 10pt; margin-bottom: 10pt; }
+                    </style>
+                </head>
+                <body>
+                    ${html}
+                </body>
+            </html>
+            `;
+
+            const blob = await asBlob(fullHtml);
+            saveAs(blob as any, `Informe_Auditoria_${data?.cover_page?.organization || auditId}.docx`);
+        } catch (e) {
+            console.error("Word Export Error:", e);
+        }
     };
 
     const SECTIONS = ["Portada", "Resumen Ejecutivo", "Prácticas", "Hallazgos", "Trazabilidad", "Riesgo", "Recomendaciones", "Roadmap", "Conclusión"];
 
-    if (loading) return <div style={{ padding: "40px", textAlign: "center", color: "#666" }}>Cargando informe...</div>;
+    if (loading) return (
+        <Box sx={{ py: 10, textAlign: 'center' }}>
+            <CircularProgress size={40} sx={{ mb: 2 }} />
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>Cargando informe...</Typography>
+        </Box>
+    );
 
     return (
-        <div style={{ width: "100%", maxWidth: "1400px", margin: "0 auto", display: "flex", gap: "32px", alignItems: "flex-start", fontFamily: "'Inter', sans-serif" }}>
+        <Box sx={{ display: 'flex', gap: 4, alignItems: 'flex-start' }}>
             {/* Hidden template for PDF export */}
             <div ref={printRef} style={{ display: "none" }}>
-                {data && <PrintTemplate data={data} />}
+                <ThemeProvider theme={lightTheme}>
+                    {data && <PrintTemplate data={data} />}
+                </ThemeProvider>
             </div>
 
             {/* Main Content */}
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
                 {/* Header */}
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "8px" }}>
-                    <div>
-                        <div style={{ fontSize: "12px", fontWeight: "bold", color: "#2196F3", textTransform: "uppercase", marginBottom: "4px" }}>Paso 5 de 5 • Reporte</div>
-                        <h2 style={{ fontSize: "28px", fontWeight: "bold", color: "#1a1a1a", margin: 0 }}>Informe Profesional de Auditoría</h2>
-                    </div>
-                    <div style={{ textAlign: "right" }}>
-                        <div style={{ fontSize: "14px", fontWeight: "bold", color: "#1a1a1a", marginBottom: "4px" }}>{isFinalized ? "100%" : "83%"} Completado</div>
-                        <div style={{ width: "200px", height: "6px", backgroundColor: "#e0e0e0", borderRadius: "3px" }}>
-                            <div style={{ width: isFinalized ? "100%" : "83%", height: "100%", backgroundColor: isFinalized ? "#66BB6A" : "#2196F3", borderRadius: "3px" }} />
-                        </div>
-                    </div>
-                </div>
-                <div style={{ height: "1px", backgroundColor: "#e0e0e0", margin: "24px 0" }} />
+                <Box sx={{ mb: 4 }}>
+                    <Stack direction="row" justifyContent="space-between" alignItems="flex-end" sx={{ mb: 1 }}>
+                        <Box>
+                            <Typography variant="overline" sx={{ fontWeight: 800, color: 'primary.main', mb: 0.5, display: 'block' }}>
+                                Paso 5 de 5 • Reporte
+                            </Typography>
+                            <Typography variant="h4" sx={{ fontWeight: 800 }}>Informe Profesional de Auditoría</Typography>
+                        </Box>
+                        <Box sx={{ textAlign: 'right', minWidth: 200 }}>
+                            <Typography variant="body2" sx={{ fontWeight: 700, mb: 1 }}>
+                                {isFinalized ? "100%" : "83%"} Completado
+                            </Typography>
+                            <LinearProgress
+                                variant="determinate"
+                                value={isFinalized ? 100 : 83}
+                                sx={{ height: 6, borderRadius: 3, bgcolor: alpha('#fff', 0.1), '& .MuiLinearProgress-bar': { borderRadius: 3 } }}
+                            />
+                        </Box>
+                    </Stack>
+                    <Divider sx={{ mt: 3, mb: 4 }} />
+                </Box>
 
                 {isFinalized && (
-                    <div style={{ backgroundColor: "#E8F5E9", border: "1px solid #A5D6A7", borderRadius: "12px", padding: "16px 24px", marginBottom: "24px", display: "flex", alignItems: "center", gap: "12px" }}>
-                        <span style={{ fontSize: "24px" }}>🔒</span>
-                        <div>
-                            <div style={{ fontWeight: "bold", color: "#2E7D32", fontSize: "15px" }}>Auditoría Finalizada</div>
-                            <div style={{ fontSize: "13px", color: "#388E3C" }}>Finalizada el {new Date(data!.metadata.generated_at).toLocaleString()}. No se permiten más modificaciones.</div>
-                        </div>
-                    </div>
+                    <Alert
+                        severity="success"
+                        icon={<LockIcon />}
+                        sx={{
+                            borderRadius: '16px', mb: 4,
+                            bgcolor: alpha('#10b981', 0.1), color: '#34d399', border: '1px solid rgba(16, 185, 129, 0.2)',
+                            '& .MuiAlert-icon': { color: '#34d399' }
+                        }}
+                    >
+                        <Typography sx={{ fontWeight: 700 }}>Auditoría Finalizada</Typography>
+                        <Typography variant="body2">
+                            Finalizada el {new Date(data!.metadata.generated_at).toLocaleString()}. No se permiten más modificaciones.
+                        </Typography>
+                    </Alert>
                 )}
 
                 {!data ? (
-                    <div style={{ backgroundColor: "white", borderRadius: "12px", border: "1px solid #e0e0e0", padding: "60px", textAlign: "center", marginBottom: "24px" }}>
-                        <div style={{ fontSize: "48px", marginBottom: "16px" }}>📄</div>
-                        <h3 style={{ margin: "0 0 8px 0", color: "#333", fontSize: "20px" }}>Generar Informe Profesional</h3>
-                        <p style={{ margin: "0 0 24px 0", fontSize: "14px", color: "#666", maxWidth: "500px", marginLeft: "auto", marginRight: "auto" }}>
+                    <Paper sx={{ p: 8, textAlign: 'center', borderRadius: '24px' }}>
+                        <DescriptionIcon sx={{ fontSize: 64, mb: 2, color: alpha('#fff', 0.2) }} />
+                        <Typography variant="h5" sx={{ mb: 1, fontWeight: 700 }}>Generar Informe Profesional</Typography>
+                        <Typography variant="body2" sx={{ color: 'text.secondary', mb: 4, maxWidth: 500, mx: 'auto' }}>
                             Consolide análisis, hallazgos y recomendaciones en un informe formal con 9 secciones profesionales, listo para comité directivo.
-                        </p>
-                        <button onClick={handleGenerate} disabled={generating} style={{ backgroundColor: generating ? "#90CAF9" : "#2196F3", color: "white", border: "none", padding: "14px 32px", borderRadius: "8px", cursor: generating ? "not-allowed" : "pointer", fontWeight: 600, fontSize: "16px" }}>
-                            {generating ? "⏳ Generando..." : "📄 Generar Informe"}
-                        </button>
-                        {error && <p style={{ marginTop: "16px", color: "#C62828", fontSize: "14px" }}>{error}</p>}
-                    </div>
+                        </Typography>
+                        <Button
+                            variant="contained"
+                            size="large"
+                            startIcon={generating ? <CircularProgress size={20} color="inherit" /> : <PlayArrowIcon />}
+                            onClick={handleGenerate}
+                            disabled={generating}
+                        >
+                            {generating ? "Generando..." : "Generar Informe"}
+                        </Button>
+                        {error && <Typography color="error" variant="caption" sx={{ display: 'block', mt: 2 }}>{error}</Typography>}
+                    </Paper>
                 ) : (
                     <>
                         {!isFinalized && (
-                            <div style={{ display: "flex", gap: "12px", marginBottom: "24px" }}>
-                                <button onClick={handleGenerate} disabled={generating} style={{ padding: "10px 20px", border: "1px solid #e0e0e0", borderRadius: "8px", backgroundColor: "white", cursor: "pointer", fontWeight: 600, fontSize: "14px", color: "#333" }}>
-                                    {generating ? "Actualizando..." : "🔄 Actualizar"}
-                                </button>
-                                <button onClick={() => setShowFinalizeModal(true)} style={{ padding: "10px 20px", border: "none", borderRadius: "8px", backgroundColor: "#66BB6A", color: "white", cursor: "pointer", fontWeight: 600, fontSize: "14px" }}>
-                                    🔒 Finalizar Auditoría
-                                </button>
-                            </div>
+                            <Stack direction="row" spacing={2} sx={{ mb: 4 }}>
+                                <Button
+                                    variant="outlined"
+                                    color="inherit"
+                                    startIcon={<RefreshIcon />}
+                                    onClick={handleGenerate}
+                                    disabled={generating}
+                                    sx={{ borderRadius: '10px' }}
+                                >
+                                    {generating ? "Actualizando..." : "Actualizar"}
+                                </Button>
+                                <Button
+                                    variant="contained"
+                                    color="success"
+                                    startIcon={<LockIcon />}
+                                    onClick={() => setShowFinalizeModal(true)}
+                                    sx={{ borderRadius: '10px' }}
+                                >
+                                    Finalizar Auditoría
+                                </Button>
+                            </Stack>
                         )}
-                        {error && <div style={{ color: "#C62828", marginBottom: "16px", fontSize: "14px" }}>{error}</div>}
+                        {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
 
                         {/* Section Navigation Tabs */}
-                        <div style={{ display: "flex", gap: "4px", marginBottom: "24px", flexWrap: "wrap" }}>
-                            {SECTIONS.map((s, i) => (
-                                <button key={s} onClick={() => setActiveSection(i)} style={{
-                                    padding: "8px 16px", borderRadius: "20px", fontSize: "13px", fontWeight: 600,
-                                    border: activeSection === i ? "2px solid #1565C0" : "1px solid #e0e0e0",
-                                    backgroundColor: activeSection === i ? "#E3F2FD" : "white",
-                                    color: activeSection === i ? "#1565C0" : "#666", cursor: "pointer",
-                                }}>{i + 1}. {s}</button>
-                            ))}
-                        </div>
+                        <Paper sx={{ p: 1, mb: 4, borderRadius: '14px', bgcolor: alpha('#1e293b', 0.5) }}>
+                            <Tabs
+                                value={activeSection}
+                                onChange={(_, v) => setActiveSection(v)}
+                                variant="scrollable"
+                                scrollButtons="auto"
+                                sx={{
+                                    minHeight: 48,
+                                    '& .MuiTabs-indicator': { height: 3, borderRadius: '3px 3px 0 0' }
+                                }}
+                            >
+                                {SECTIONS.map((s, i) => (
+                                    <Tab
+                                        key={s}
+                                        label={`${i + 1}. ${s}`}
+                                        sx={{
+                                            textTransform: 'none',
+                                            fontWeight: 600,
+                                            fontSize: '13px',
+                                            minHeight: 48,
+                                            '&.Mui-selected': { color: 'primary.main' }
+                                        }}
+                                    />
+                                ))}
+                            </Tabs>
+                        </Paper>
 
-                        <div className="report-canvas">
+                        <Box className="report-canvas" sx={{
+                            bgcolor: 'background.paper',
+                            borderRadius: '24px',
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            p: { xs: 3, md: 6 },
+                            minHeight: 600,
+                            boxShadow: '0 8px 32px rgba(0,0,0,0.2)'
+                        }}>
                             {activeSection === 0 && <CoverView data={data.cover_page} />}
                             {activeSection === 1 && <ExecutiveView data={data.executive_summary} practices={data.practice_details} />}
                             {activeSection === 2 && <PracticesView data={data.practice_details} />}
@@ -208,73 +406,158 @@ export function ReportStep() {
                             {activeSection === 6 && <RecommendationsView data={data.recommendations} />}
                             {activeSection === 7 && <RoadmapView data={data.roadmap} />}
                             {activeSection === 8 && <ConclusionView data={data.conclusion} />}
-                        </div>
+                        </Box>
                     </>
                 )}
 
-                {/* Finalize Modal */}
-                {showFinalizeModal && (
-                    <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
-                        <div style={{ backgroundColor: "white", borderRadius: "12px", padding: "32px", maxWidth: "450px", width: "90%", textAlign: "center" }}>
-                            <div style={{ fontSize: "48px", marginBottom: "12px" }}>🔒</div>
-                            <h3 style={{ margin: "0 0 8px 0", color: "#1a1a1a", fontSize: "20px" }}>¿Finalizar Auditoría?</h3>
-                            <p style={{ color: "#666", fontSize: "14px", margin: "0 0 8px 0" }}>Esto bloqueará permanentemente la auditoría y su reporte.</p>
-                            <p style={{ color: "#C62828", fontSize: "13px", fontWeight: 600, margin: "0 0 24px 0" }}>⚠️ Esta acción no se puede deshacer.</p>
-                            <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
-                                <button onClick={() => setShowFinalizeModal(false)} style={{ padding: "10px 24px", border: "1px solid #e0e0e0", borderRadius: "8px", backgroundColor: "white", cursor: "pointer", fontWeight: 600, fontSize: "14px" }}>Cancelar</button>
-                                <button onClick={handleFinalize} disabled={finalizing} style={{ padding: "10px 24px", border: "none", borderRadius: "8px", backgroundColor: finalizing ? "#A5D6A7" : "#66BB6A", color: "white", cursor: finalizing ? "not-allowed" : "pointer", fontWeight: 600, fontSize: "14px" }}>{finalizing ? "Finalizando..." : "Finalizar"}</button>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
                 {/* Footer Navigation */}
-                <div style={{ display: "flex", justifyContent: "space-between", marginTop: "40px", paddingTop: "24px", borderTop: "1px solid #e0e0e0" }}>
-                    <button onClick={() => navigate(`/audit/${auditId}/findings`)} style={{ background: "none", border: "none", cursor: "pointer", color: "#666", fontSize: "14px", fontWeight: 600, display: "flex", alignItems: "center", gap: "8px" }}>← Volver a Hallazgos</button>
-                    <button onClick={() => navigate("/")} style={{ backgroundColor: "#2196F3", color: "white", border: "none", padding: "12px 24px", borderRadius: "8px", cursor: "pointer", fontWeight: 600, fontSize: "14px" }}>Volver a Auditorías</button>
-                </div>
-            </div>
+                <Stack direction="row" justifyContent="space-between" sx={{ mt: 6, pt: 4, borderTop: '1px solid', borderColor: 'divider' }}>
+                    <Button
+                        startIcon={<ArrowBackIosNewIcon fontSize="small" />}
+                        onClick={() => navigate(`/audit/${auditId}/findings`)}
+                        color="inherit"
+                        sx={{ fontWeight: 600 }}
+                    >
+                        Volver a Hallazgos
+                    </Button>
+                    <Button
+                        variant="contained"
+                        onClick={() => navigate("/")}
+                        sx={{ borderRadius: '10px', px: 3 }}
+                    >
+                        Volver a Auditorías
+                    </Button>
+                </Stack>
+            </Box>
 
             {/* Sidebar Actions */}
             {data && (
-                <div style={{ width: "280px", flexShrink: 0, position: "sticky", top: "24px" }}>
-                    <SectionBox title="Acciones del Informe">
-                        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                            <button onClick={handleExportPDF} style={{ display: "flex", alignItems: "center", gap: "12px", backgroundColor: "#1565C0", color: "white", border: "none", padding: "12px 16px", borderRadius: "8px", cursor: "pointer", fontWeight: 600, fontSize: "14px" }}>
-                                <span>📄</span><div style={{ textAlign: "left" }}><div>Exportar PDF</div><div style={{ fontSize: "11px", opacity: 0.8, fontWeight: "normal" }}>Formato estándar</div></div>
-                            </button>
-                            <button onClick={handleExportWord} style={{ display: "flex", alignItems: "center", gap: "12px", backgroundColor: "white", color: "#333", border: "1px solid #e0e0e0", padding: "12px 16px", borderRadius: "8px", cursor: "pointer", fontWeight: 600, fontSize: "14px" }}>
-                                <span>📝</span><div style={{ textAlign: "left" }}><div>Exportar Word</div><div style={{ fontSize: "11px", color: "#666", fontWeight: "normal" }}>Formato editable</div></div>
-                            </button>
-                        </div>
-                    </SectionBox>
-                    <SectionBox title="Contenido del Informe">
-                        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                            {SECTIONS.map((s, i) => (
-                                <button key={s} onClick={() => setActiveSection(i)} style={{
-                                    textAlign: "left", padding: "8px 12px", borderRadius: "6px", border: "none", fontSize: "13px",
-                                    backgroundColor: activeSection === i ? "#E3F2FD" : "transparent",
-                                    color: activeSection === i ? "#1565C0" : "#555",
-                                    fontWeight: activeSection === i ? 600 : 400,
-                                    cursor: "pointer",
-                                }}>{i + 1}. {s}</button>
-                            ))}
-                        </div>
-                    </SectionBox>
-                    <SectionBox title="Información">
-                        <div style={{ fontSize: "13px", color: "#666", lineHeight: 1.5 }}>
-                            <div style={{ marginBottom: "8px" }}><span style={{ fontWeight: 600, color: "#333" }}>Versión:</span> v{data.metadata.version}</div>
-                            <div style={{ marginBottom: "8px" }}><span style={{ fontWeight: 600, color: "#333" }}>Generado:</span> {new Date(data.metadata.generated_at).toLocaleString()}</div>
-                            <div><span style={{ fontWeight: 600, color: "#333" }}>Estado:</span> {data.metadata.status === "finalized" ? "Final" : "Borrador"}</div>
-                        </div>
-                    </SectionBox>
-                </div>
+                <Box sx={{ width: 300, flexShrink: 0, position: 'sticky', top: 24 }}>
+                    <Stack spacing={3}>
+                        <SectionBox title="Acciones">
+                            <Stack spacing={2}>
+                                <Button
+                                    variant="contained"
+                                    fullWidth
+                                    startIcon={<PictureAsPdfIcon />}
+                                    onClick={handleExportPDF}
+                                    sx={{ py: 1.5, borderRadius: '12px' }}
+                                >
+                                    <Box sx={{ textAlign: 'left', flex: 1 }}>
+                                        <Typography variant="body2" sx={{ fontWeight: 700 }}>Exportar PDF</Typography>
+                                        <Typography variant="caption" sx={{ opacity: 0.8, display: 'block' }}>Formato estándar</Typography>
+                                    </Box>
+                                </Button>
+                                <Button
+                                    variant="outlined"
+                                    fullWidth
+                                    color="inherit"
+                                    startIcon={<DescriptionIcon />}
+                                    onClick={handleExportWord}
+                                    sx={{ py: 1.5, borderRadius: '12px' }}
+                                >
+                                    <Box sx={{ textAlign: 'left', flex: 1 }}>
+                                        <Typography variant="body2" sx={{ fontWeight: 700 }}>Exportar Word</Typography>
+                                        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>Formato editable</Typography>
+                                    </Box>
+                                </Button>
+                            </Stack>
+                        </SectionBox>
+
+                        <SectionBox title="Contenido">
+                            <Stack spacing={0.5}>
+                                {SECTIONS.map((s, i) => (
+                                    <Button
+                                        key={s}
+                                        fullWidth
+                                        size="small"
+                                        onClick={() => setActiveSection(i)}
+                                        sx={{
+                                            justifyContent: 'flex-start',
+                                            py: 1, px: 1.5, borderRadius: '8px',
+                                            bgcolor: activeSection === i ? alpha('#2563eb', 0.1) : 'transparent',
+                                            color: activeSection === i ? 'primary.main' : 'text.secondary',
+                                            fontWeight: activeSection === i ? 700 : 500,
+                                            fontSize: '13px',
+                                            '&:hover': { bgcolor: alpha('#2563eb', 0.05) }
+                                        }}
+                                    >
+                                        {i + 1}. {s}
+                                    </Button>
+                                ))}
+                            </Stack>
+                        </SectionBox>
+
+                        <SectionBox title="Información">
+                            <Stack spacing={1.5}>
+                                <Box>
+                                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>Versión</Typography>
+                                    <Typography variant="body2" sx={{ fontWeight: 600 }}>v{data.metadata.version}.0</Typography>
+                                </Box>
+                                <Box>
+                                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>Generado</Typography>
+                                    <Typography variant="body2" sx={{ fontWeight: 600 }}>{new Date(data.metadata.generated_at).toLocaleString()}</Typography>
+                                </Box>
+                                <Box>
+                                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>Estado</Typography>
+                                    <Chip
+                                        label={data.metadata.status === "finalized" ? "Finalizado" : "Borrador"}
+                                        size="small"
+                                        color={data.metadata.status === "finalized" ? "success" : "warning"}
+                                        sx={{ height: 20, fontSize: '10px', fontWeight: 800, ml: 1 }}
+                                    />
+                                </Box>
+                            </Stack>
+                        </SectionBox>
+                    </Stack>
+                </Box>
             )}
 
-            <style>{`
-                .report-canvas { background: white; border-radius: 12px; border: 1px solid #e0e0e0; padding: 48px; min-height: 600px; box-shadow: 0 4px 12px rgba(0,0,0,0.02); }
-            `}</style>
-        </div>
+            {/* Finalize Modal */}
+            <Dialog
+                open={showFinalizeModal}
+                onClose={() => !finalizing && setShowFinalizeModal(false)}
+                PaperProps={{ sx: { borderRadius: '24px', p: 2, maxWidth: 450 } }}
+            >
+                <DialogContent sx={{ textAlign: 'center', py: 4 }}>
+                    <Box sx={{
+                        width: 64, height: 64, borderRadius: '50%', bgcolor: alpha('#f59e0b', 0.1),
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', mx: 'auto', mb: 3
+                    }}>
+                        <WarningAmberIcon sx={{ fontSize: 32, color: '#f59e0b' }} />
+                    </Box>
+                    <Typography variant="h5" sx={{ fontWeight: 800, mb: 1 }}>¿Finalizar Auditoría?</Typography>
+                    <Typography variant="body2" sx={{ color: 'text.secondary', mb: 3 }}>
+                        Esto bloqueará permanentemente la auditoría y su reporte. Esta acción no se puede deshacer.
+                    </Typography>
+                    <Alert severity="warning" sx={{ borderRadius: '12px', textAlign: 'left' }}>
+                        <Typography variant="caption" sx={{ fontWeight: 700 }}>
+                            ⚠️ Una vez finalizado, no podrá editar ningún paso de esta auditoría.
+                        </Typography>
+                    </Alert>
+                </DialogContent>
+                <DialogActions sx={{ px: 3, pb: 4, justifyContent: 'center', gap: 2 }}>
+                    <Button
+                        onClick={() => setShowFinalizeModal(false)}
+                        disabled={finalizing}
+                        color="inherit"
+                        sx={{ fontWeight: 600 }}
+                    >
+                        Cancelar
+                    </Button>
+                    <Button
+                        variant="contained"
+                        color="error"
+                        onClick={handleFinalize}
+                        disabled={finalizing}
+                        startIcon={finalizing ? <CircularProgress size={16} color="inherit" /> : <LockIcon />}
+                        sx={{ borderRadius: '10px', px: 4 }}
+                    >
+                        {finalizing ? "Finalizando..." : "Finalizar y Bloquear"}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+        </Box>
     );
 }
 
@@ -282,302 +565,550 @@ export function ReportStep() {
 
 function CoverView({ data }: { data: CoverPage }) {
     return (
-        <SectionBox title="">
-            <div style={{ textAlign: "center", padding: "40px 0" }}>
-                <div style={{ fontSize: "11px", fontWeight: 700, color: "#1565C0", textTransform: "uppercase", letterSpacing: "3px", marginBottom: "16px" }}>Informe de Auditoría de Procesos de Software</div>
-                <h1 style={{ fontSize: "32px", fontWeight: "bold", color: "#1a1a1a", margin: "0 0 8px 0" }}>{data.audit_name}</h1>
-                <div style={{ fontSize: "18px", color: "#555", marginBottom: "32px" }}>{data.organization}</div>
-                <div style={{ display: "inline-block", padding: "24px 48px", backgroundColor: "#fafafa", borderRadius: "12px", border: "1px solid #e0e0e0", textAlign: "left" }}>
-                    {[
-                        { l: "Período Evaluado", v: data.review_period },
-                        { l: "Estándar", v: data.standard_used },
-                        { l: "Fecha de Emisión", v: new Date(data.issue_date).toLocaleDateString("es-ES", { year: "numeric", month: "long", day: "numeric" }) },
-                        { l: "Versión", v: `v${data.report_version}.0` },
-                        { l: "Estado", v: data.status },
-                        { l: "Repositorios", v: `${data.repositories_count} evaluados` },
-                    ].map(i => (
-                        <div key={i.l} style={{ display: "flex", justifyContent: "space-between", gap: "48px", padding: "6px 0", borderBottom: "1px solid #f0f0f0" }}>
-                            <span style={{ fontSize: "13px", fontWeight: 600, color: "#999" }}>{i.l}</span>
-                            <span style={{ fontSize: "14px", fontWeight: 600, color: "#1a1a1a" }}>{i.v}</span>
-                        </div>
-                    ))}
-                </div>
-            </div>
-        </SectionBox>
+        <Box sx={{ py: 4 }}>
+            <Box sx={{ mb: 10, textAlign: 'center' }}>
+                <Box sx={{
+                    width: 80, height: 80, borderRadius: '20px',
+                    background: 'linear-gradient(135deg, #2563eb 0%, #6366f1 100%)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: 'white', fontWeight: 900, fontSize: '32px', mb: 3, mx: 'auto',
+                    boxShadow: '0 8px 32px rgba(37, 99, 235, 0.3)'
+                }}>D</Box>
+                <Typography variant="h3" sx={{ fontWeight: 900, letterSpacing: '-0.025em', mb: 1, color: 'text.primary' }}>DevAudit IA</Typography>
+                <Typography variant="h6" sx={{ color: 'text.secondary', fontWeight: 500 }}>Reporte de Evaluación Técnica</Typography>
+            </Box>
+
+            <Grid container spacing={3} sx={{ mb: 8 }}>
+                <Grid size={{ xs: 12, md: 6 }}>
+                    <Card sx={{ height: '100%', bgcolor: 'background.paper' }}>
+                        <CardContent sx={{ p: 4 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+                                <BusinessIcon sx={{ color: 'primary.main' }} />
+                                <Typography variant="h6" sx={{ fontWeight: 800 }}>Entidad Evaluada</Typography>
+                            </Box>
+                            <Typography variant="h4" sx={{ fontWeight: 800, mb: 1 }}>{data.organization}</Typography>
+                            <Typography variant="body2" sx={{ color: 'text.secondary' }}>Proyecto: {data.audit_name}</Typography>
+                        </CardContent>
+                    </Card>
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
+                    <Card sx={{ height: '100%', bgcolor: 'background.paper' }}>
+                        <CardContent sx={{ p: 4 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+                                <CalendarMonthIcon sx={{ color: 'primary.main' }} />
+                                <Typography variant="h6" sx={{ fontWeight: 800 }}>Periodo y Emisión</Typography>
+                            </Box>
+                            <DLabel>Periodo de Revisión</DLabel>
+                            <DVal>{data.review_period}</DVal>
+                            <Box sx={{ mt: 2 }}>
+                                <DLabel>Fecha de Emisión</DLabel>
+                                <DVal>{data.issue_date}</DVal>
+                            </Box>
+                        </CardContent>
+                    </Card>
+                </Grid>
+            </Grid>
+
+            <Box sx={{ p: 4, borderRadius: '24px', bgcolor: alpha('#2563eb', 0.05), border: '1px solid', borderColor: alpha('#2563eb', 0.1) }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 3, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Especificaciones de Auditoría</Typography>
+                <Grid container spacing={4}>
+                    <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                        <DLabel>Estándar</DLabel>
+                        <Chip label={data.standard_used} size="small" variant="outlined" sx={{ mt: 0.5, fontWeight: 700 }} />
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                        <DLabel>Versión Informe</DLabel>
+                        <DVal>v{data.report_version}.0</DVal>
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                        <DLabel>Estado</DLabel>
+                        <Chip
+                            label={data.status === "finalized" ? "FINALIZADO" : "BORRADOR"}
+                            size="small"
+                            color={data.status === "finalized" ? "success" : "warning"}
+                            sx={{ mt: 0.5, fontWeight: 800, height: 20, fontSize: '10px' }}
+                        />
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                        <DLabel>Repositorios Analizados</DLabel>
+                        <DVal>{data.repositories_count} Sources</DVal>
+                    </Grid>
+                </Grid>
+            </Box>
+        </Box>
     );
 }
 
-function ExecutiveView({ data, practices }: { data: ExecutiveSummary, practices: PracticeDetailSection[] }) {
-    const pieData = [
-        { id: 0, value: data.severity_summary.high, label: 'Alta', color: '#D32F2F' },
-        { id: 1, value: data.severity_summary.medium, label: 'Media', color: '#F57C00' },
-        { id: 2, value: data.severity_summary.low, label: 'Baja', color: '#388E3C' },
-    ];
-
-    const barData = practices.map(p => ({
-        practice: p.practice_code,
-        score: p.score,
-    }));
-
+function ExecutiveView({ data, practices }: { data: ExecutiveSummary; practices: PracticeDetailSection[] }) {
     return (
-        <SectionBox title="📊 Resumen Ejecutivo Estratégico">
-            <div style={{ display: "flex", gap: "24px", alignItems: "center", marginBottom: "24px" }}>
-                <div style={{ width: "90px", height: "90px", borderRadius: "50%", backgroundColor: maturityColor(data.global_maturity_level) + "22", border: `3px solid ${maturityColor(data.global_maturity_level)}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    <span style={{ fontSize: "14px", fontWeight: "bold", color: maturityColor(data.global_maturity_level), textAlign: "center" }}>{data.global_maturity_level}</span>
-                </div>
-                <div>
-                    <div style={{ fontSize: "22px", fontWeight: "bold", color: "#1a1a1a" }}>Nivel {data.global_maturity_numeric} — {data.global_maturity_level}</div>
-                    <div style={{ fontSize: "14px", color: "#666" }}>Nivel de Madurez Global</div>
-                </div>
-            </div>
-            <p style={{ fontSize: "14px", lineHeight: 1.7, color: "#444", marginBottom: "24px" }}>{data.maturity_interpretation}</p>
+        <Box>
+            <Typography variant="h5" sx={{ fontWeight: 800, mb: 4, color: 'text.primary' }}>Resumen Ejecutivo</Typography>
+            <Grid container spacing={4}>
+                {/* Score and Maturity Card */}
+                <Grid size={{ xs: 12, lg: 5 }}>
+                    <Card sx={{ p: 4, textAlign: 'center', height: '100%', bgcolor: 'background.paper', position: 'relative' }}>
+                        <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', mb: 3 }}>Nivel de Madurez Global</Typography>
+                        <Box sx={{ position: 'relative', display: 'inline-flex', mb: 3, justifyContent: 'center', alignItems: 'center' }}>
+                            <CircularProgress
+                                variant="determinate"
+                                value={Math.round((data.global_compliance_percentage || 0) * 100)}
+                                size={150}
+                                thickness={5}
+                                sx={{
+                                    color: maturityColor(data.global_maturity_level),
+                                    '& .MuiCircularProgress-circle': { strokeLinecap: 'round' }
+                                }}
+                            />
+                            <Box
+                                sx={{
+                                    top: 0, left: 0, bottom: 0, right: 0,
+                                    position: 'absolute',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                }}
+                            >
+                                <Typography variant="h3" sx={{ fontWeight: 900, color: maturityColor(data.global_maturity_level) }}>
+                                    {Math.round((data.global_compliance_percentage || 0) * 100)}%
+                                </Typography>
+                            </Box>
+                        </Box>
+                        <Typography variant="h5" sx={{ fontWeight: 800, color: maturityColor(data.global_maturity_level), mb: 1 }}>
+                            {data.global_maturity_level}
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: 'text.secondary' }}>Métrica consolidada basada en {practices.length} dominios analizados</Typography>
+                    </Card>
+                </Grid>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "32px", marginBottom: "32px" }}>
-                <SubSection title="Distribución de Hallazgos">
-                    <div style={{ display: "flex", justifyContent: "center" }}>
-                        <PieChart series={[{ data: pieData, innerRadius: 50 }]} width={300} height={200} />
-                    </div>
-                </SubSection>
-                <SubSection title="Principales Riesgos">
-                    <ul style={{ margin: 0, paddingLeft: "20px" }}>
-                        {data.principal_risks.map((r, i) => <li key={i} style={{ fontSize: "14px", color: "#444", marginBottom: "6px" }}>{r}</li>)}
-                    </ul>
-                </SubSection>
-            </div>
+                {/* Interpretation and Risks */}
+                <Grid size={{ xs: 12, lg: 7 }}>
+                    <Stack spacing={3}>
+                        <Box>
+                            <DLabel>Interpretación Estratégica</DLabel>
+                            <Typography variant="body2" sx={{ lineHeight: 1.7, color: 'text.primary' }}>{data.maturity_interpretation}</Typography>
+                        </Box>
+                        <Box>
+                            <DLabel>Riesgos Principales Identificados</DLabel>
+                            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
+                                {data.principal_risks.map((r, i) => (
+                                    <Chip key={i} label={r} size="small" sx={{ bgcolor: alpha('#ef4444', 0.1), color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)', fontWeight: 600 }} />
+                                ))}
+                            </Stack>
+                        </Box>
+                        <Box>
+                            <DLabel>Impacto Organizacional</DLabel>
+                            <Typography variant="body2" sx={{ color: 'text.secondary' }}>{data.organizational_impact}</Typography>
+                        </Box>
+                    </Stack>
+                </Grid>
+            </Grid>
 
-            <SubSection title="Desempeño por Práctica">
-                <div style={{ display: "flex", justifyContent: "center" }}>
-                    <BarChart
-                        dataset={barData}
-                        xAxis={[{ scaleType: 'band', dataKey: 'practice' }]}
-                        series={[{ dataKey: 'score', label: 'Puntaje', color: '#1565C0' }]}
-                        width={600}
-                        height={300}
-                    />
-                </div>
-            </SubSection>
+            {/* Severity Summary */}
+            <Box sx={{ mt: 6 }}>
+                <DLabel>Resumen de Hallazgos por Severidad</DLabel>
+                <Grid container spacing={3} sx={{ mt: 1 }}>
+                    {Object.entries(data.severity_summary).map(([k, v]) => {
+                        if (k === 'total') return null;
+                        const label = k === 'high' ? 'Crítico' : k === 'medium' ? 'Medio' : 'Bajo';
+                        const color = k === 'high' ? '#ef4444' : k === 'medium' ? '#f59e0b' : '#10b981';
+                        return (
+                            <Grid size={{ xs: 12, sm: 4 }} key={k}>
+                                <Paper sx={{ p: 2, textAlign: 'center', border: '1px solid', borderColor: alpha(color, 0.2), bgcolor: alpha(color, 0.05) }}>
+                                    <Typography variant="h4" sx={{ fontWeight: 900, color }}>{v}</Typography>
+                                    <Typography variant="caption" sx={{ fontWeight: 700, textTransform: 'uppercase' }}>{label}</Typography>
+                                </Paper>
+                            </Grid>
+                        );
+                    })}
+                </Grid>
+            </Box>
 
-            <SubSection title="Impacto Organizacional">
-                <p style={{ fontSize: "14px", lineHeight: 1.7, color: "#444", margin: 0 }}>{data.organizational_impact}</p>
-            </SubSection>
-            <SubSection title="Recomendación General">
-                <p style={{ fontSize: "14px", lineHeight: 1.7, color: "#444", margin: 0 }}>{data.general_recommendation}</p>
-            </SubSection>
-        </SectionBox>
+            <Box sx={{ mt: 6, p: 4, borderRadius: '20px', bgcolor: alpha('#2563eb', 0.1), border: '1px solid', borderColor: alpha('#2563eb', 0.2) }}>
+                <Stack direction="row" spacing={2} alignItems="center">
+                    <VerifiedIcon sx={{ color: 'primary.main' }} />
+                    <Box>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 800, color: 'text.primary' }}>Recomendación General de Auditoría</Typography>
+                        <Typography variant="body2" sx={{ color: 'text.primary' }}>{data.general_recommendation}</Typography>
+                    </Box>
+                </Stack>
+            </Box>
+        </Box>
     );
 }
 
 function PracticesView({ data }: { data: PracticeDetailSection[] }) {
     return (
-        <SectionBox title="📐 Resultados por Práctica (Detalle Analítico)">
-            {data.map(p => (
-                <div key={p.practice_code} style={{ marginBottom: "24px", border: "1px solid #e0e0e0", borderRadius: "10px", overflow: "hidden" }}>
-                    <div style={{ padding: "16px 20px", backgroundColor: "#fafafa", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e0e0e0" }}>
-                        <div>
-                            <span style={{ fontSize: "11px", fontWeight: 700, color: "#999" }}>{p.practice_code}</span>
-                            <div style={{ fontSize: "16px", fontWeight: "bold", color: "#1a1a1a" }}>{p.practice_name}</div>
-                        </div>
-                        <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-                            <span style={{ padding: "4px 12px", borderRadius: "12px", fontSize: "11px", fontWeight: 700, backgroundColor: maturityColor(p.maturity_level) + "22", color: maturityColor(p.maturity_level) }}>{p.maturity_level}</span>
-                            <span style={{ padding: "4px 12px", borderRadius: "12px", fontSize: "11px", fontWeight: 700, backgroundColor: riskColor(p.aggregated_risk) + "22", color: riskColor(p.aggregated_risk) }}>Riesgo: {p.aggregated_risk}</span>
-                        </div>
-                    </div>
-                    <div style={{ padding: "20px" }}>
-                        <div style={{ display: "flex", gap: "24px", marginBottom: "16px" }}>
-                            <div><span style={{ fontSize: "12px", color: "#999" }}>Puntaje</span><div style={{ fontSize: "18px", fontWeight: "bold" }}>{p.score}/{p.max_score}</div></div>
-                            <div><span style={{ fontSize: "12px", color: "#999" }}>Hallazgos</span><div style={{ fontSize: "18px", fontWeight: "bold" }}>{p.associated_findings_count}</div></div>
-                            <div><span style={{ fontSize: "12px", color: "#999" }}>Cumplimiento</span><div style={{ fontSize: "18px", fontWeight: "bold", color: "#66BB6A" }}>{p.rules_passed.length}</div></div>
-                            <div><span style={{ fontSize: "12px", color: "#999" }}>Brechas</span><div style={{ fontSize: "18px", fontWeight: "bold", color: "#EF5350" }}>{p.rules_failed.length}</div></div>
-                        </div>
-                        <div style={{ height: "8px", backgroundColor: "#f0f0f0", borderRadius: "4px", overflow: "hidden", marginBottom: "16px" }}>
-                            <div style={{ height: "100%", width: p.max_score > 0 ? `${(p.score / p.max_score) * 100}%` : "0%", backgroundColor: maturityColor(p.maturity_level), borderRadius: "4px" }} />
-                        </div>
-                        <p style={{ fontSize: "13px", lineHeight: 1.6, color: "#555" }}>{p.technical_explanation}</p>
-                    </div>
-                </div>
-            ))}
-        </SectionBox>
+        <Box>
+            <Typography variant="h5" sx={{ fontWeight: 800, mb: 4, color: 'text.primary' }}>Detalle por Dominio de Práctica</Typography>
+            <Stack spacing={4}>
+                {data.map((p) => (
+                    <Card key={p.practice_code} sx={{ borderRadius: '24px', border: '1px solid', borderColor: 'divider', overflow: 'hidden' }}>
+                        <Box sx={{ px: 4, py: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: 'background.paper' }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                <Box sx={{
+                                    width: 32, height: 32, borderRadius: '8px', bgcolor: 'primary.main',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 900, fontSize: '12px'
+                                }}>
+                                    {p.practice_code}
+                                </Box>
+                                <Typography variant="h6" sx={{ fontWeight: 800, color: 'text.primary' }}>{p.practice_name}</Typography>
+                            </Box>
+                            <Chip
+                                label={p.maturity_level}
+                                size="small"
+                                sx={{ bgcolor: alpha(maturityColor(p.maturity_level), 0.1), color: maturityColor(p.maturity_level), fontWeight: 800, border: '1px solid currentColor' }}
+                            />
+                        </Box>
+                        <CardContent sx={{ p: 4 }}>
+                            <Grid container spacing={4}>
+                                <Grid size={{ xs: 12, md: 4 }}>
+                                    <Box sx={{ mb: 3 }}>
+                                        <Typography variant="h3" sx={{ fontWeight: 900, mb: 0.5, color: 'text.primary' }}>{Math.round((p.score / (p.max_score || 1)) * 100)}%</Typography>
+                                        <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase' }}>Puntaje de Conformidad</Typography>
+                                        <LinearProgress
+                                            variant="determinate"
+                                            value={(p.score / (p.max_score || 1)) * 100}
+                                            sx={{ mt: 1, height: 4, borderRadius: 2, bgcolor: alpha('#fff', 0.1) }}
+                                        />
+                                    </Box>
+                                    <Box sx={{ p: 2, borderRadius: '12px', bgcolor: alpha('#1e293b', 0.2), border: '1px solid', borderColor: 'divider' }}>
+                                        <Typography variant="caption" sx={{ fontWeight: 700, textTransform: 'uppercase', mb: 1, display: 'block' }}>Resumen de Reglas</Typography>
+                                        <Stack direction="row" justifyContent="space-between" sx={{ mb: 1 }}>
+                                            <Typography variant="body2" sx={{ color: 'success.main', fontWeight: 600 }}>Cumplidas</Typography>
+                                            <Typography variant="body2" sx={{ fontWeight: 800 }}>{p.rules_passed.length}</Typography>
+                                        </Stack>
+                                        <Stack direction="row" justifyContent="space-between">
+                                            <Typography variant="body2" sx={{ color: 'error.main', fontWeight: 600 }}>Incumplidas</Typography>
+                                            <Typography variant="body2" sx={{ fontWeight: 800 }}>{p.rules_failed.length}</Typography>
+                                        </Stack>
+                                    </Box>
+                                </Grid>
+                                <Grid size={{ xs: 12, md: 8 }}>
+                                    <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 1.5 }}>Justificación Técnica</Typography>
+                                    <Typography variant="body2" sx={{ color: 'text.secondary', lineHeight: 1.7, mb: 3 }}>{p.technical_explanation}</Typography>
+
+                                    <Box sx={{ display: 'flex', gap: 4 }}>
+                                        <Box>
+                                            <DLabel>Hallazgos Asociados</DLabel>
+                                            <Typography variant="h6" sx={{ fontWeight: 800 }}>{p.associated_findings_count}</Typography>
+                                        </Box>
+                                        <Box>
+                                            <DLabel>Riesgo Agregado</DLabel>
+                                            <Chip label={p.aggregated_risk} size="small" sx={{ bgcolor: alpha(riskColor(p.aggregated_risk), 0.1), color: riskColor(p.aggregated_risk), fontWeight: 800, border: '1px solid currentColor' }} />
+                                        </Box>
+                                    </Box>
+                                </Grid>
+                            </Grid>
+                        </CardContent>
+                    </Card>
+                ))}
+            </Stack>
+        </Box>
     );
 }
 
 function FindingsView({ data, expandedFinding, setExpandedFinding }: { data: FindingsMatrixEntry[], expandedFinding: string | null, setExpandedFinding: (id: string | null) => void }) {
     return (
-        <SectionBox title={`📋 Matriz de Hallazgos Formal (${data.length})`}>
-            {data.length === 0 ? <p style={{ color: "#666" }}>No hay hallazgos aprobados.</p> : (
-                <div style={{ overflowX: "auto" }}>
-                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                        <thead><tr style={{ borderBottom: "2px solid #e0e0e0" }}>
-                            {["ID", "Severidad", "Título", "Repositorio", "Regla"].map(h => (
-                                <th key={h} style={{ textAlign: "left", padding: "12px 8px", fontSize: "11px", fontWeight: 700, color: "#999", textTransform: "uppercase" }}>{h}</th>
-                            ))}
-                        </tr></thead>
-                        <tbody>
-                            {data.map(f => (
-                                <>
-                                    <tr key={f.id} onClick={() => setExpandedFinding(expandedFinding === f.id ? null : f.id)} style={{ borderBottom: expandedFinding === f.id ? "none" : "1px solid #f0f0f0", cursor: "pointer" }}>
-                                        <td style={{ padding: "10px 8px", fontSize: "12px", fontFamily: "monospace", color: "#666" }}>{f.id.substring(0, 8)}</td>
-                                        <td style={{ padding: "10px 8px" }}><SevBadge s={f.severity} /></td>
-                                        <td style={{ padding: "10px 8px", fontSize: "13px", fontWeight: 600, color: "#333" }}>{f.title}</td>
-                                        <td style={{ padding: "10px 8px", fontSize: "13px", color: "#555" }}>{f.repository}</td>
-                                        <td style={{ padding: "10px 8px", fontSize: "12px", fontFamily: "monospace", color: "#666" }}>{f.rule_violated}</td>
-                                    </tr>
+        <Box>
+            <Typography variant="h5" sx={{ fontWeight: 800, mb: 4, color: 'text.primary' }}>Matriz de Hallazgos Formal ({data.length})</Typography>
+            {data.length === 0 ? (
+                <Alert severity="info" sx={{ borderRadius: '16px' }}>No hay hallazgos aprobados para esta auditoría.</Alert>
+            ) : (
+                <Box sx={{ overflowX: 'auto', borderRadius: '16px', border: '1px solid', borderColor: 'divider' }}>
+                    <Table>
+                        <TableHead sx={{ bgcolor: 'background.paper' }}>
+                            <TableRow>
+                                <TableCell sx={{ fontWeight: 800, color: 'text.secondary', fontSize: '11px', textTransform: 'uppercase' }}>ID</TableCell>
+                                <TableCell sx={{ fontWeight: 800, color: 'text.secondary', fontSize: '11px', textTransform: 'uppercase' }}>Severidad</TableCell>
+                                <TableCell sx={{ fontWeight: 800, color: 'text.secondary', fontSize: '11px', textTransform: 'uppercase' }}>Título</TableCell>
+                                <TableCell sx={{ fontWeight: 800, color: 'text.secondary', fontSize: '11px', textTransform: 'uppercase' }}>Repositorio</TableCell>
+                                <TableCell sx={{ fontWeight: 800, color: 'text.secondary', fontSize: '11px', textTransform: 'uppercase' }}>Regla</TableCell>
+                            </TableRow>
+                        </TableHead>
+                        <TableBody>
+                            {data.map((f) => (
+                                <Fragment key={f.id}>
+                                    <TableRow
+                                        onClick={() => setExpandedFinding(expandedFinding === f.id ? null : f.id)}
+                                        sx={{
+                                            cursor: 'pointer',
+                                            '&:hover': { bgcolor: alpha('#2563eb', 0.05) },
+                                            bgcolor: expandedFinding === f.id ? alpha('#2563eb', 0.03) : 'transparent',
+                                            transition: 'background-color 0.2s'
+                                        }}
+                                    >
+                                        <TableCell sx={{ fontFamily: 'monospace', color: 'text.secondary', fontSize: '12px' }}>{f.id.substring(0, 8)}</TableCell>
+                                        <TableCell><SevBadge s={f.severity} /></TableCell>
+                                        <TableCell sx={{ fontWeight: 700, color: 'text.primary' }}>{f.title}</TableCell>
+                                        <TableCell sx={{ color: 'text.secondary' }}>{f.repository}</TableCell>
+                                        <TableCell sx={{ fontFamily: 'monospace', fontSize: '12px', color: 'text.secondary' }}>{f.rule_violated}</TableCell>
+                                    </TableRow>
                                     {expandedFinding === f.id && (
-                                        <tr key={`${f.id}-exp`} style={{ borderBottom: "1px solid #f0f0f0" }}>
-                                            <td colSpan={5} style={{ padding: "0 8px 16px", backgroundColor: "#fafafa" }}>
-                                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", padding: "12px" }}>
-                                                    <div><DLabel>Descripción</DLabel><DVal>{f.description}</DVal></div>
-                                                    <div><DLabel>Impacto</DLabel><DVal>{f.impact}</DVal></div>
-                                                    <div><DLabel>Recomendación</DLabel><DVal>{f.recommendation}</DVal></div>
-                                                    <div><DLabel>Evidencia</DLabel><DVal>{Object.entries(f.evidence).map(([k, v]) => <div key={k}><span style={{ fontFamily: "monospace", fontWeight: 600 }}>{k}:</span> {String(v)}</div>)}</DVal></div>
-                                                </div>
-                                            </td>
-                                        </tr>
+                                        <TableRow sx={{ bgcolor: alpha('#1e293b', 0.2) }}>
+                                            <TableCell colSpan={5} sx={{ py: 4, px: 6 }}>
+                                                <Grid container spacing={4}>
+                                                    <Grid size={{ xs: 12, md: 6 }}>
+                                                        <DLabel>Descripción del Hallazgo</DLabel>
+                                                        <Typography variant="body2" sx={{ mb: 2, color: 'text.primary' }}>{f.description}</Typography>
+                                                        <DLabel>Impacto Potencial</DLabel>
+                                                        <Typography variant="body2" sx={{ color: 'text.primary' }}>{f.impact}</Typography>
+                                                    </Grid>
+                                                    <Grid size={{ xs: 12, md: 6 }}>
+                                                        <DLabel>Recomendación de Mitigación</DLabel>
+                                                        <Typography variant="body2" sx={{ mb: 2, color: 'text.primary' }}>{f.recommendation}</Typography>
+                                                        <DLabel>Evidencia Técnica</DLabel>
+                                                        <Box sx={{ p: 2, borderRadius: '8px', bgcolor: alpha('#000', 0.2), border: '1px solid', borderColor: 'divider' }}>
+                                                            {Object.entries(f.evidence).map(([k, v]) => (
+                                                                <Box key={k} sx={{ display: 'flex', gap: 1, mb: 0.5 }}>
+                                                                    <Typography variant="caption" sx={{ fontFamily: 'monospace', fontWeight: 800, color: 'primary.light' }}>{k}:</Typography>
+                                                                    <Typography variant="caption" sx={{ fontFamily: 'monospace' }}>{String(v)}</Typography>
+                                                                </Box>
+                                                            ))}
+                                                        </Box>
+                                                    </Grid>
+                                                </Grid>
+                                            </TableCell>
+                                        </TableRow>
                                     )}
-                                </>
+                                </Fragment>
                             ))}
-                        </tbody>
-                    </table>
-                </div>
+                        </TableBody>
+                    </Table>
+                </Box>
             )}
-        </SectionBox>
+        </Box>
     );
 }
 
 function TraceabilityView({ data }: { data: TraceabilitySection }) {
     return (
-        <SectionBox title="🔗 Trazabilidad Completa">
+        <Box>
+            <Typography variant="h5" sx={{ fontWeight: 800, mb: 4, color: 'text.primary' }}>Trazabilidad de Evidencia</Typography>
             <SubSection title="Metodología de Evaluación">
-                <p style={{ fontSize: "14px", lineHeight: 1.7, color: "#444", margin: 0 }}>{data.methodology_explanation}</p>
+                <Typography variant="body2" sx={{ lineHeight: 1.7, color: 'text.secondary' }}>{data.methodology_explanation}</Typography>
             </SubSection>
-            <SubSection title="Cadenas de Evidencia">
-                <div style={{ overflowX: "auto" }}>
-                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                        <thead><tr style={{ borderBottom: "2px solid #e0e0e0" }}>
-                            {["Repo", "Métrica", "Valor", "Regla", "Resultado", "Nivel"].map(h => (
-                                <th key={h} style={{ textAlign: "left", padding: "10px 8px", fontSize: "11px", fontWeight: 700, color: "#999", textTransform: "uppercase" }}>{h}</th>
+
+            <Box sx={{ mt: 4 }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 2 }}>Cadenas de Evidencia Técnica</Typography>
+                <Box sx={{ overflowX: 'auto', borderRadius: '16px', border: '1px solid', borderColor: 'divider' }}>
+                    <Table size="small">
+                        <TableHead sx={{ bgcolor: 'background.paper' }}>
+                            <TableRow>
+                                <TableCell sx={{ fontWeight: 800, color: 'text.secondary', fontSize: '10px', textTransform: 'uppercase' }}>Repositorio</TableCell>
+                                <TableCell sx={{ fontWeight: 800, color: 'text.secondary', fontSize: '10px', textTransform: 'uppercase' }}>Métrica</TableCell>
+                                <TableCell sx={{ fontWeight: 800, color: 'text.secondary', fontSize: '10px', textTransform: 'uppercase' }}>Valor</TableCell>
+                                <TableCell sx={{ fontWeight: 800, color: 'text.secondary', fontSize: '10px', textTransform: 'uppercase' }}>Regla Evaluada</TableCell>
+                                <TableCell sx={{ fontWeight: 800, color: 'text.secondary', fontSize: '10px', textTransform: 'uppercase' }}>Resultado</TableCell>
+                            </TableRow>
+                        </TableHead>
+                        <TableBody>
+                            {data.chains.map((c, i) => (
+                                <TableRow key={i} sx={{ '&:hover': { bgcolor: alpha('#fff', 0.02) } }}>
+                                    <TableCell sx={{ fontSize: '12px' }}>{c.repository}</TableCell>
+                                    <TableCell sx={{ fontFamily: 'monospace', fontSize: '11px', color: 'primary.light' }}>{c.evidence_metric}</TableCell>
+                                    <TableCell sx={{ fontWeight: 700, fontSize: '12px' }}>{String(c.evidence_value)}</TableCell>
+                                    <TableCell sx={{ fontFamily: 'monospace', fontSize: '11px', color: 'text.secondary' }}>{c.rule_evaluated}</TableCell>
+                                    <TableCell>
+                                        <Chip
+                                            label="FAIL"
+                                            size="small"
+                                            sx={{ height: 18, fontSize: '9px', fontWeight: 900, bgcolor: alpha('#ef4444', 0.1), color: '#ef4444' }}
+                                        />
+                                    </TableCell>
+                                </TableRow>
                             ))}
-                        </tr></thead>
-                        <tbody>{data.chains.map((c, i) => (
-                            <tr key={i} style={{ borderBottom: "1px solid #f0f0f0" }}>
-                                <td style={{ padding: "10px 8px", fontSize: "13px", color: "#555" }}>{c.repository}</td>
-                                <td style={{ padding: "10px 8px", fontSize: "12px", fontFamily: "monospace" }}>{c.evidence_metric}</td>
-                                <td style={{ padding: "10px 8px", fontSize: "13px", fontWeight: 600 }}>{String(c.evidence_value)}</td>
-                                <td style={{ padding: "10px 8px", fontSize: "12px", fontFamily: "monospace" }}>{c.rule_evaluated}</td>
-                                <td style={{ padding: "10px 8px" }}><span style={{ padding: "3px 10px", borderRadius: "10px", fontSize: "11px", fontWeight: 700, backgroundColor: "#FFEBEE", color: "#C62828" }}>FAIL</span></td>
-                                <td style={{ padding: "10px 8px" }}><span style={{ padding: "3px 10px", borderRadius: "10px", fontSize: "11px", fontWeight: 700, backgroundColor: maturityColor(c.practice_level) + "22", color: maturityColor(c.practice_level) }}>{c.practice_level}</span></td>
-                            </tr>
-                        ))}</tbody>
-                    </table>
-                </div>
-            </SubSection>
-        </SectionBox>
+                        </TableBody>
+                    </Table>
+                </Box>
+            </Box>
+        </Box>
     );
 }
 
 function RiskView({ data }: { data: RiskAnalysis }) {
     return (
-        <SectionBox title="⚠️ Análisis de Riesgo Consolidado">
-            <div style={{ display: "flex", gap: "24px", alignItems: "center", marginBottom: "24px" }}>
-                <div style={{ width: "90px", height: "90px", borderRadius: "50%", backgroundColor: riskColor(data.global_risk_level) + "22", border: `3px solid ${riskColor(data.global_risk_level)}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    <span style={{ fontSize: "22px", fontWeight: "bold", color: riskColor(data.global_risk_level) }}>{data.global_risk_score}%</span>
-                </div>
-                <div>
-                    <div style={{ fontSize: "22px", fontWeight: "bold", color: "#1a1a1a" }}>Riesgo {data.global_risk_level}</div>
-                    <div style={{ fontSize: "14px", color: "#666" }}>Nivel de Riesgo Global</div>
-                </div>
-            </div>
-            <p style={{ fontSize: "14px", lineHeight: 1.7, color: "#444", marginBottom: "24px" }}>{data.risk_classification}</p>
-            <SubSection title="Áreas Críticas">
+        <Box>
+            <Typography variant="h5" sx={{ fontWeight: 800, mb: 4, color: 'text.primary' }}>Análisis de Riesgo Consolidado</Typography>
+
+            <Grid container spacing={4} sx={{ mb: 6 }}>
+                <Grid size={{ xs: 12, md: 5 }}>
+                    <Card sx={{ p: 4, textAlign: 'center', height: '100%', bgcolor: alpha(riskColor(data.global_risk_level), 0.05), border: '1px solid', borderColor: alpha(riskColor(data.global_risk_level), 0.2) }}>
+                        <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', mb: 3 }}>Puntaje de Riesgo Global</Typography>
+                        <Box sx={{ position: 'relative', display: 'inline-flex', mb: 3 }}>
+                            <Box sx={{
+                                width: 140, height: 140, borderRadius: '50%',
+                                border: '10px solid', borderColor: alpha(riskColor(data.global_risk_level), 0.2),
+                                display: 'flex', alignItems: 'center', justifyContent: 'center'
+                            }}>
+                                <Typography variant="h3" sx={{ fontWeight: 900, color: riskColor(data.global_risk_level) }}>
+                                    {data.global_risk_score}%
+                                </Typography>
+                            </Box>
+                        </Box>
+                        <Typography variant="h5" sx={{ fontWeight: 800, color: riskColor(data.global_risk_level), mb: 1 }}>Riesgo {data.global_risk_level}</Typography>
+                        <Typography variant="body2" sx={{ color: 'text.secondary' }}>Clasificación heurística según hallazgos críticos</Typography>
+                    </Card>
+                </Grid>
+                <Grid size={{ xs: 12, md: 7 }}>
+                    <Stack spacing={4}>
+                        <Box>
+                            <DLabel>Clasificación de Riesgo</DLabel>
+                            <Typography variant="body2" sx={{ lineHeight: 1.7, color: 'text.primary' }}>{data.risk_classification}</Typography>
+                        </Box>
+                        <Box>
+                            <DLabel>Dependencias Críticas</DLabel>
+                            <Stack spacing={1}>
+                                {data.weakness_dependencies.map((w, i) => (
+                                    <Box key={i} sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                                        <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: 'error.main' }} />
+                                        <Typography variant="body2" sx={{ color: 'text.secondary' }}>{w}</Typography>
+                                    </Box>
+                                ))}
+                            </Stack>
+                        </Box>
+                    </Stack>
+                </Grid>
+            </Grid>
+
+            <Typography variant="subtitle2" sx={{ fontWeight: 800, mb: 3 }}>Áreas de Impacto Crítico</Typography>
+            <Grid container spacing={2}>
                 {data.critical_areas.map((a, i) => (
-                    <div key={i} style={{ padding: "12px 16px", marginBottom: "8px", borderRadius: "8px", backgroundColor: "#fafafa", borderLeft: `4px solid ${riskColor(a.risk_level)}` }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
-                            <span style={{ fontSize: "14px", fontWeight: 600, color: "#333" }}>{a.area}</span>
-                            <span style={{ padding: "3px 10px", borderRadius: "10px", fontSize: "11px", fontWeight: 700, backgroundColor: riskColor(a.risk_level) + "22", color: riskColor(a.risk_level) }}>{a.risk_level}</span>
-                        </div>
-                        <p style={{ fontSize: "13px", color: "#666", margin: 0 }}>{a.description}</p>
-                    </div>
+                    <Grid size={{ xs: 12, sm: 6 }} key={i}>
+                        <Paper sx={{ p: 3, height: '100%', borderLeft: '4px solid', borderColor: riskColor(a.risk_level), bgcolor: 'background.paper' }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5 }}>
+                                <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>{a.area}</Typography>
+                                <Chip label={a.risk_level} size="small" sx={{ height: 18, fontSize: '9px', fontWeight: 900, bgcolor: alpha(riskColor(a.risk_level), 0.1), color: riskColor(a.risk_level) }} />
+                            </Box>
+                            <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '13px' }}>{a.description}</Typography>
+                        </Paper>
+                    </Grid>
                 ))}
-            </SubSection>
-            <SubSection title="Dependencias entre Debilidades">
-                <ul style={{ margin: 0, paddingLeft: "20px" }}>{data.weakness_dependencies.map((w, i) => <li key={i} style={{ fontSize: "14px", color: "#444", marginBottom: "8px", lineHeight: 1.6 }}>{w}</li>)}</ul>
-            </SubSection>
-        </SectionBox>
+            </Grid>
+        </Box>
     );
 }
 
 function RecommendationsView({ data }: { data: PrioritizedRecommendation[] }) {
     return (
-        <SectionBox title="✅ Recomendaciones Prioritizadas">
-            <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                    <thead><tr style={{ borderBottom: "2px solid #e0e0e0" }}>
-                        {["#", "Acción", "Sev.", "Impacto", "Esfuerzo", "Responsable"].map(h => (
-                            <th key={h} style={{ textAlign: "left", padding: "12px 8px", fontSize: "11px", fontWeight: 700, color: "#999", textTransform: "uppercase" }}>{h}</th>
+        <Box>
+            <Typography variant="h5" sx={{ fontWeight: 800, mb: 4, color: 'text.primary' }}>Recomendaciones Prioritizadas</Typography>
+            <Box sx={{ overflowX: 'auto', borderRadius: '16px', border: '1px solid', borderColor: 'divider' }}>
+                <Table>
+                    <TableHead sx={{ bgcolor: 'background.paper' }}>
+                        <TableRow>
+                            <TableCell sx={{ fontWeight: 800, color: 'text.secondary', fontSize: '11px', textTransform: 'uppercase', width: 60 }}>#</TableCell>
+                            <TableCell sx={{ fontWeight: 800, color: 'text.secondary', fontSize: '11px', textTransform: 'uppercase' }}>Acción Recomendada</TableCell>
+                            <TableCell sx={{ fontWeight: 800, color: 'text.secondary', fontSize: '11px', textTransform: 'uppercase' }}>Severidad</TableCell>
+                            <TableCell sx={{ fontWeight: 800, color: 'text.secondary', fontSize: '11px', textTransform: 'uppercase' }}>Impacto</TableCell>
+                            <TableCell sx={{ fontWeight: 800, color: 'text.secondary', fontSize: '11px', textTransform: 'uppercase' }}>Responsable</TableCell>
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        {data.map((r) => (
+                            <TableRow key={r.priority} sx={{ '&:hover': { bgcolor: alpha('#2563eb', 0.05) } }}>
+                                <TableCell sx={{ fontWeight: 900, fontSize: '18px', color: 'primary.main' }}>{r.priority}</TableCell>
+                                <TableCell sx={{ maxWidth: 350 }}>
+                                    <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.5 }}>{r.action}</Typography>
+                                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>Práctica: {r.practice}</Typography>
+                                </TableCell>
+                                <TableCell><SevBadge s={r.severity} /></TableCell>
+                                <TableCell sx={{ fontWeight: 700 }}>{r.impact}</TableCell>
+                                <TableCell sx={{ color: 'text.secondary', fontSize: '13px' }}>{r.suggested_responsible}</TableCell>
+                            </TableRow>
                         ))}
-                    </tr></thead>
-                    <tbody>{data.map(r => (
-                        <tr key={r.priority} style={{ borderBottom: "1px solid #f0f0f0" }}>
-                            <td style={{ padding: "12px 8px", fontSize: "16px", fontWeight: "bold", color: "#1565C0" }}>{r.priority}</td>
-                            <td style={{ padding: "12px 8px", fontSize: "13px", color: "#444" }}>{r.action}</td>
-                            <td style={{ padding: "12px 8px" }}><SevBadge s={r.severity} /></td>
-                            <td style={{ padding: "12px 8px", fontSize: "13px", fontWeight: 600 }}>{r.impact}</td>
-                            <td style={{ padding: "12px 8px", fontSize: "13px" }}>{r.implementation_ease}</td>
-                            <td style={{ padding: "12px 8px", fontSize: "13px", color: "#555" }}>{r.suggested_responsible}</td>
-                        </tr>
-                    ))}</tbody>
-                </table>
-            </div>
-        </SectionBox>
+                    </TableBody>
+                </Table>
+            </Box>
+        </Box>
     );
 }
 
 function RoadmapView({ data }: { data: ImprovementRoadmap }) {
+    const phases = [
+        { title: "Corto Plazo (0–30 días)", items: data.short_term, color: "#ef4444", icon: <LockIcon sx={{ fontSize: 16 }} /> },
+        { title: "Mediano Plazo (1–3 meses)", items: data.medium_term, color: "#f59e0b", icon: <AssessmentIcon sx={{ fontSize: 16 }} /> },
+        { title: "Largo Plazo (3–6 meses)", items: data.long_term, color: "#10b981", icon: <PlayArrowIcon sx={{ fontSize: 16 }} /> },
+    ];
+
     return (
-        <SectionBox title="🗺️ Roadmap de Mejora">
-            {[
-                { title: "Corto Plazo (0–30 días)", items: data.short_term, color: "#C62828", bg: "#FFEBEE" },
-                { title: "Mediano Plazo (1–3 meses)", items: data.medium_term, color: "#E65100", bg: "#FFF3E0" },
-                { title: "Largo Plazo (3–6 meses)", items: data.long_term, color: "#2E7D32", bg: "#E8F5E9" },
-            ].map(phase => phase.items.length > 0 && (
-                <div key={phase.title} style={{ marginBottom: "24px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "12px" }}>
-                        <div style={{ width: "12px", height: "12px", borderRadius: "50%", backgroundColor: phase.color }} />
-                        <span style={{ fontSize: "16px", fontWeight: "bold", color: "#1a1a1a" }}>{phase.title}</span>
-                    </div>
-                    {phase.items.map((item, i) => (
-                        <div key={i} style={{ padding: "12px 16px", marginBottom: "8px", borderRadius: "8px", backgroundColor: "#fafafa", borderLeft: `3px solid ${phase.color}`, marginLeft: "20px" }}>
-                            <div style={{ fontSize: "13px", fontWeight: 600, color: "#333", marginBottom: "4px" }}>{item.action}</div>
-                            <div style={{ fontSize: "12px", color: "#888" }}>Resultado esperado: {item.expected_outcome}</div>
-                        </div>
-                    ))}
-                </div>
-            ))}
-        </SectionBox>
+        <Box>
+            <Typography variant="h5" sx={{ fontWeight: 800, mb: 4, color: 'text.primary' }}>Roadmap de Mejora Continua</Typography>
+            <Stack spacing={4}>
+                {phases.map(phase => phase.items.length > 0 && (
+                    <Box key={phase.title}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2.5 }}>
+                            <Box sx={{
+                                width: 32, height: 32, borderRadius: '50%', bgcolor: alpha(phase.color, 0.1), color: phase.color,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center'
+                            }}>
+                                {phase.icon}
+                            </Box>
+                            <Typography variant="subtitle1" sx={{ fontWeight: 800, color: 'text.primary' }}>{phase.title}</Typography>
+                        </Box>
+                        <Stack spacing={2} sx={{ ml: 6 }}>
+                            {phase.items.map((item, i) => (
+                                <Paper key={i} sx={{ p: 3, borderLeft: '4px solid', borderColor: phase.color, bgcolor: 'background.paper' }}>
+                                    <Typography variant="body2" sx={{ fontWeight: 700, mb: 1, color: 'text.primary' }}>{item.action}</Typography>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>Resultado esperado:</Typography>
+                                        <Typography variant="caption" sx={{ color: 'primary.light' }}>{item.expected_outcome}</Typography>
+                                    </Box>
+                                </Paper>
+                            ))}
+                        </Stack>
+                    </Box>
+                ))}
+            </Stack>
+        </Box>
     );
 }
 
 function ConclusionView({ data }: { data: TechnicalConclusion }) {
     return (
-        <SectionBox title="🏁 Conclusión Técnica">
-            <SubSection title="Estado Actual del Proceso">
-                <p style={{ fontSize: "14px", lineHeight: 1.7, color: "#444", margin: 0 }}>{data.current_state}</p>
-            </SubSection>
-            <SubSection title="Brechas contra el Estándar">
-                <ul style={{ margin: 0, paddingLeft: "20px" }}>{data.gaps_against_standard.map((g: string, i: number) => <li key={i} style={{ fontSize: "14px", color: "#444", marginBottom: "6px" }}>{g}</li>)}</ul>
-            </SubSection>
-            <SubSection title="Riesgo de Inacción">
-                <p style={{ fontSize: "14px", lineHeight: 1.7, color: "#444", margin: 0 }}>{data.risk_of_inaction}</p>
-            </SubSection>
-            <SubSection title="Escalabilidad">
-                <p style={{ fontSize: "14px", lineHeight: 1.7, color: "#444", margin: 0 }}>{data.scalability_readiness}</p>
-            </SubSection>
-        </SectionBox>
+        <Box>
+            <Typography variant="h5" sx={{ fontWeight: 800, mb: 4, color: 'text.primary' }}>Conclusión Técnica Final</Typography>
+            <Grid container spacing={4}>
+                <Grid size={{ xs: 12, md: 6 }}>
+                    <Stack spacing={4}>
+                        <Box>
+                            <DLabel>Estado Actual del Proceso</DLabel>
+                            <Typography variant="body2" sx={{ lineHeight: 1.7, color: 'text.primary' }}>{data.current_state}</Typography>
+                        </Box>
+                        <Box>
+                            <DLabel>Riesgo de Inacción</DLabel>
+                            <Paper sx={{ p: 2, bgcolor: alpha('#ef4444', 0.05), border: '1px solid', borderColor: alpha('#ef4444', 0.2) }}>
+                                <Typography variant="body2" sx={{ color: '#ef4444', fontWeight: 500 }}>{data.risk_of_inaction}</Typography>
+                            </Paper>
+                        </Box>
+                    </Stack>
+                </Grid>
+                <Grid size={{ xs: 12, md: 6 }}>
+                    <Stack spacing={4}>
+                        <Box>
+                            <DLabel>Brechas contra el Estándar</DLabel>
+                            <Stack spacing={1}>
+                                {data.gaps_against_standard.map((g: string, i: number) => (
+                                    <Box key={i} sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+                                        <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: 'primary.main', mt: 1 }} />
+                                        <Typography variant="body2" sx={{ color: 'text.secondary' }}>{g}</Typography>
+                                    </Box>
+                                ))}
+                            </Stack>
+                        </Box>
+                        <Box>
+                            <DLabel>Preparación para Escalabilidad</DLabel>
+                            <Typography variant="body2" sx={{ color: 'text.primary' }}>{data.scalability_readiness}</Typography>
+                        </Box>
+                    </Stack>
+                </Grid>
+            </Grid>
+        </Box>
     );
 }
 
 function PrintTemplate({ data }: { data: ProfessionalReportData }) {
     return (
-        <div style={{ padding: "60px", backgroundColor: "white", width: "1000px" }}>
+        <div style={{ padding: "60px", backgroundColor: "white", width: "1000px", color: "#0f172a" }}>
             <CoverView data={data.cover_page} />
             <div style={{ pageBreakBefore: "always", height: "40px" }} />
             <ExecutiveView data={data.executive_summary} practices={data.practice_details} />
@@ -603,46 +1134,79 @@ function PrintTemplate({ data }: { data: ProfessionalReportData }) {
 
 function SectionBox({ title, children }: { title: string; children: React.ReactNode }) {
     return (
-        <div style={{ backgroundColor: "white", borderRadius: "12px", border: "1px solid #e0e0e0", overflow: "hidden", marginBottom: "20px" }}>
-            {title && <div style={{ padding: "16px 24px", borderBottom: "1px solid #e0e0e0", backgroundColor: "#fafafa" }}><h3 style={{ margin: 0, fontSize: "16px", fontWeight: "bold", color: "#1a1a1a" }}>{title}</h3></div>}
-            <div style={{ padding: "24px" }}>{children}</div>
-        </div>
+        <Paper sx={{ mb: 4, borderRadius: '20px', overflow: 'hidden' }}>
+            {title && (
+                <Box sx={{
+                    px: 3, py: 2,
+                    bgcolor: alpha('#1e293b', 0.4),
+                    borderBottom: '1px solid',
+                    borderColor: 'divider'
+                }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        {title}
+                    </Typography>
+                </Box>
+            )}
+            <Box sx={{ p: 3 }}>{children}</Box>
+        </Paper>
     );
 }
 
 function SubSection({ title, children }: { title: string; children: React.ReactNode }) {
     return (
-        <div style={{ marginBottom: "20px" }}>
-            <div style={{ fontSize: "13px", fontWeight: 700, color: "#555", textTransform: "uppercase", marginBottom: "8px", borderBottom: "1px solid #f0f0f0", paddingBottom: "6px" }}>{title}</div>
+        <Box sx={{ mb: 4 }}>
+            <Typography variant="caption" sx={{
+                fontWeight: 800, color: 'text.secondary', textTransform: 'uppercase',
+                letterSpacing: '0.1em', mb: 2, display: 'block',
+                pb: 1, borderBottom: '1px solid', borderColor: 'divider'
+            }}>
+                {title}
+            </Typography>
             {children}
-        </div>
+        </Box>
     );
 }
 
 function DLabel({ children }: { children: React.ReactNode }) {
-    return <div style={{ fontSize: "11px", fontWeight: 700, color: "#999", textTransform: "uppercase", marginBottom: "4px" }}>{children}</div>;
+    return <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', textTransform: 'uppercase', mb: 0.5, display: 'block' }}>{children}</Typography>;
 }
 
 function DVal({ children }: { children: React.ReactNode }) {
-    return <div style={{ fontSize: "13px", color: "#555", lineHeight: 1.5 }}>{children}</div>;
+    return <Typography variant="body2" sx={{ color: 'text.primary', lineHeight: 1.6 }}>{children}</Typography>;
 }
 
 function SevBadge({ s }: { s: string }) {
-    const color = s === "HIGH" ? "#C62828" : s === "MEDIUM" ? "#E65100" : "#2E7D32";
-    const bg = s === "HIGH" ? "#FFEBEE" : s === "MEDIUM" ? "#FFF3E0" : "#E8F5E9";
-    return <span style={{ padding: "3px 10px", borderRadius: "10px", fontSize: "11px", fontWeight: 700, backgroundColor: bg, color }}>{s}</span>;
+    const color = s === "HIGH" ? "#ef4444" : s === "MEDIUM" ? "#f59e0b" : "#10b981";
+    return (
+        <Chip
+            label={s}
+            size="small"
+            sx={{
+                height: 20,
+                fontSize: '10px',
+                fontWeight: 800,
+                bgcolor: alpha(color, 0.1),
+                color: color,
+                border: `1px solid ${alpha(color, 0.2)}`
+            }}
+        />
+    );
 }
 
 function maturityColor(lvl: string) {
-    if (lvl === "Optimizado") return "#1565C0";
-    if (lvl === "Gestionado") return "#2E7D32";
-    if (lvl === "Definido") return "#F9A825";
-    if (lvl === "Repetible") return "#EF6C00";
-    return "#C62828";
+    if (!lvl) return "#94a3b8";
+    const level = lvl.toLowerCase();
+    if (level.includes("optimizado")) return "#6366f1";
+    if (level.includes("gestionado") && level.includes("cuantitativamente")) return "#2563eb";
+    if (level.includes("gestionado")) return "#10b981";
+    if (level.includes("definido")) return "#f59e0b";
+    if (level.includes("repetible")) return "#ef4444";
+    if (level.includes("inicial")) return "#ef4444";
+    return "#94a3b8";
 }
 
 function riskColor(lvl: string) {
-    if (lvl === "BAJO") return "#2E7D32";
-    if (lvl === "MEDIO") return "#F9A825";
-    return "#C62828";
+    if (lvl === "BAJO") return "#10b981";
+    if (lvl === "MEDIO") return "#f59e0b";
+    return "#ef4444";
 }

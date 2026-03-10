@@ -1,6 +1,49 @@
 import { Outlet, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useState, useEffect } from "react";
+import {
+    Box,
+    Stepper,
+    Step,
+    StepLabel,
+    Typography,
+    AppBar,
+    Toolbar,
+    IconButton,
+    Avatar,
+    Container,
+    alpha,
+    Divider,
+    Paper,
+    StepConnector,
+    stepConnectorClasses,
+    styled
+} from "@mui/material";
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { AuditService } from "../services/audit.service";
+
+// Custom connector for the stepper
+const ColorlibConnector = styled(StepConnector)(({ theme }) => ({
+    [`&.${stepConnectorClasses.alternativeLabel}`]: {
+        top: 22,
+    },
+    [`&.${stepConnectorClasses.active}`]: {
+        [`& .${stepConnectorClasses.line}`]: {
+            backgroundImage: 'linear-gradient( 95deg, #2563eb 0%, #6366f1 50%, #8b5cf6 100%)',
+        },
+    },
+    [`&.${stepConnectorClasses.completed}`]: {
+        [`& .${stepConnectorClasses.line}`]: {
+            backgroundImage: 'linear-gradient( 95deg, #2563eb 0%, #6366f1 50%, #8b5cf6 100%)',
+        },
+    },
+    [`& .${stepConnectorClasses.line}`]: {
+        height: 3,
+        border: 0,
+        backgroundColor: alpha(theme.palette.divider, 0.1),
+        borderRadius: 1,
+    },
+}));
 
 export function AuditFlowLayout() {
     const { id } = useParams<{ id: string }>();
@@ -16,35 +59,28 @@ export function AuditFlowLayout() {
     ];
 
     const currentStepIndex = steps.findIndex(step => location.pathname.includes(step.path));
-
-    // Track the furthest step reached to allow navigating forward to visited steps
     const [maxStepReached, setMaxStepReached] = useState(currentStepIndex);
     const [auditLoaded, setAuditLoaded] = useState(false);
 
-    // Fetch initial audit state
     useEffect(() => {
         if (id && id !== "new") {
             AuditService.getAuditById(id).then(audit => {
                 const step = audit.currentStep || 0;
-                // Only set if backend has a further step than current (though usually they should match on load)
                 setMaxStepReached(prev => Math.max(prev, step));
                 setAuditLoaded(true);
             }).catch(err => {
                 console.error("Failed to load audit", err);
-                // Handle error (e.g. redirect to list)
+                navigate("/");
             });
         } else if (id === "new") {
             setAuditLoaded(true);
         }
-    }, [id]);
+    }, [id, navigate]);
 
-    // Update local state and backend when advancing
     useEffect(() => {
         if (currentStepIndex > maxStepReached) {
             setMaxStepReached(currentStepIndex);
-
-            // Persist to backend
-            if (id) {
+            if (id && id !== "new") {
                 AuditService.updateAudit(id, { currentStep: currentStepIndex })
                     .catch(err => console.error("Failed to update audit progress", err));
             }
@@ -52,144 +88,120 @@ export function AuditFlowLayout() {
     }, [currentStepIndex, maxStepReached, id]);
 
     if (!auditLoaded && id && id !== "new") {
-        return <div style={{ padding: "40px", textAlign: "center" }}>Cargando auditoría...</div>;
+        return (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: 'text.secondary' }}>
+                <Typography>Cargando auditoría...</Typography>
+            </Box>
+        );
     }
 
     return (
-        <div style={{ minHeight: "100vh", backgroundColor: "#f9f9f9", display: "flex", flexDirection: "column" }}>
+        <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', bgcolor: 'background.default' }}>
             {/* Header */}
-            <header style={{
-                backgroundColor: "white",
-                padding: "12px 24px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                borderBottom: "1px solid #e0e0e0"
+            <AppBar position="static" elevation={0} sx={{
+                bgcolor: 'background.paper',
+                borderBottom: '1px solid',
+                borderColor: 'divider',
+                backdropFilter: 'blur(20px)',
             }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "24px" }}>
-                    <div
-                        onClick={() => navigate("/")}
-                        style={{ display: "flex", alignItems: "center", gap: "12px", borderRight: "1px solid #eee", paddingRight: "24px", cursor: "pointer" }}
+                <Toolbar sx={{ justifyContent: 'space-between', px: { xs: 2, sm: 4 } }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                        <IconButton
+                            onClick={() => navigate("/")}
+                            sx={{ color: 'text.primary', '&:hover': { bgcolor: alpha('#fff', 0.05) } }}
+                        >
+                            <ArrowBackIcon fontSize="small" />
+                        </IconButton>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                            <Box sx={{
+                                width: 28, height: 28, borderRadius: '6px',
+                                background: 'linear-gradient(135deg, #2563eb 0%, #6366f1 100%)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                color: 'white', fontWeight: 'bold', fontSize: '14px'
+                            }}>D</Box>
+                            <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                                DevAudit IA
+                            </Typography>
+                        </Box>
+                        <Divider orientation="vertical" flexItem sx={{ height: 24, my: 'auto', opacity: 0.5 }} />
+                        <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 500 }}>
+                            Ejecución de Auditoría
+                        </Typography>
+                    </Box>
+
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                        <IconButton sx={{ color: 'text.secondary' }}>
+                            <HelpOutlineIcon />
+                        </IconButton>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                            <Box sx={{ textAlign: 'right' }}>
+                                <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary' }}>Jane Auditor</Typography>
+                                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>Evaluador Principal</Typography>
+                            </Box>
+                            <Avatar sx={{
+                                width: 36, height: 36, bgcolor: alpha('#2563eb', 0.2),
+                                color: '#60a5fa', fontWeight: 700, fontSize: '14px',
+                                border: '1px solid rgba(96, 165, 250, 0.2)'
+                            }}>JA</Avatar>
+                        </Box>
+                    </Box>
+                </Toolbar>
+            </AppBar>
+
+            {/* Stepper Section */}
+            <Paper elevation={0} sx={{
+                py: 4,
+                borderRadius: 0,
+                borderBottom: '1px solid',
+                borderColor: 'divider',
+                background: alpha('#1e293b', 0.4)
+            }}>
+                <Container maxWidth="md">
+                    <Stepper
+                        activeStep={currentStepIndex}
+                        alternativeLabel
+                        connector={<ColorlibConnector />}
                     >
-                        <span style={{ fontWeight: "bold", fontSize: "16px", color: "#1a1a1a" }}>DevAudit IA</span>
-                    </div>
-                    <span style={{ fontSize: "14px", color: "#666" }}>Ejecución de Auditoría</span>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: "24px" }}>
-                    <span style={{ cursor: "pointer", fontSize: "20px", color: "#666" }}>❓</span>
-                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                        <div style={{ textAlign: "right" }}>
-                            <div style={{ fontSize: "14px", fontWeight: "bold", color: "#1a1a1a" }}>Jane Auditor</div>
-                            <div style={{ fontSize: "12px", color: "#666" }}>Evaluador Principal</div>
-                        </div>
-                        <div style={{
-                            width: "36px",
-                            height: "36px",
-                            borderRadius: "50%",
-                            backgroundColor: "#2196F3",
-                            color: "white",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontWeight: "bold",
-                            fontSize: "14px"
-                        }}>
-                            JA
-                        </div>
-                    </div>
-                </div>
-            </header>
+                        {steps.map((step, index) => {
+                            const isClickable = index <= maxStepReached && index !== currentStepIndex;
 
-            {/* Stepper */}
-            <div style={{
-                padding: "40px 0",
-                backgroundColor: "white",
-                display: "flex",
-                justifyContent: "center",
-                borderBottom: "1px solid #e0e0e0"
-            }}>
-                <div style={{ display: "flex", alignItems: "center", width: "80%", maxWidth: "800px", justifyContent: "space-between", position: "relative" }}>
-                    {/* Progress Line */}
-                    <div style={{
-                        position: "absolute",
-                        top: "16px",
-                        left: "40px",
-                        right: "40px",
-                        height: "2px",
-                        backgroundColor: "#e0e0e0",
-                        zIndex: 0
-                    }} />
-                    <div style={{
-                        position: "absolute",
-                        top: "16px",
-                        left: "40px",
-                        width: `${(currentStepIndex / (steps.length - 1)) * (100 - (80 / 800 * 100))}%`, // Simplified calc
-                        height: "2px",
-                        backgroundColor: "#2196F3",
-                        zIndex: 0,
-                        transition: "width 0.3s ease"
-                    }} />
-
-                    {steps.map((step, index) => {
-                        const isActive = index === currentStepIndex;
-                        const isCompleted = index < currentStepIndex;
-                        const isLocked = index > maxStepReached;
-                        const isAvailable = index <= maxStepReached && !isActive; // Clickable if not active and not locked
-
-                        return (
-                            <div
-                                key={step.label}
-                                onClick={() => isAvailable && navigate(step.path)}
-                                style={{
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    alignItems: "center",
-                                    zIndex: 1,
-                                    width: "80px",
-                                    cursor: isAvailable ? "pointer" : (isLocked ? "not-allowed" : "default"),
-                                    opacity: isLocked ? 0.6 : 1
-                                }}
-                            >
-                                <div style={{
-                                    width: "32px",
-                                    height: "32px",
-                                    borderRadius: "50%",
-                                    backgroundColor: isActive || isCompleted ? "#2196F3" : "white",
-                                    border: isActive || isCompleted ? "none" : (
-                                        !isLocked ? "2px solid #2196F3" : "2px solid #e0e0e0"
-                                    ),
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    color: isActive || isCompleted ? "white" : (
-                                        !isLocked ? "#2196F3" : "#999"
-                                    ),
-                                    fontWeight: "bold",
-                                    fontSize: "14px",
-                                    marginBottom: "8px",
-                                    boxShadow: isActive ? "0 0 0 4px rgba(33, 150, 243, 0.2)" : "none"
-                                }}>
-                                    {isCompleted ? "✓" : index + 1}
-                                </div>
-                                <span style={{
-                                    fontSize: "12px",
-                                    fontWeight: isActive || isAvailable ? "bold" : "500",
-                                    color: isActive || isAvailable ? "#2196F3" : "#999"
-                                }}>
-                                    {step.label}
-                                </span>
-                            </div>
-                        );
-                    })}
-                </div>
-            </div>
+                            return (
+                                <Step key={step.label}>
+                                    <StepLabel
+                                        onClick={() => isClickable && navigate(step.path)}
+                                        sx={{
+                                            cursor: isClickable ? 'pointer' : 'default',
+                                            '& .MuiStepLabel-label': {
+                                                mt: 1,
+                                                fontSize: '12px',
+                                                fontWeight: 600,
+                                                color: index <= currentStepIndex ? 'text.primary' : 'text.secondary',
+                                            },
+                                            '& .MuiStepIcon-root': {
+                                                width: 24,
+                                                height: 24,
+                                                color: index < currentStepIndex ? 'primary.main' :
+                                                    index === currentStepIndex ? 'primary.main' : 'divider',
+                                                '&.Mui-active': { color: 'primary.main' },
+                                                '&.Mui-completed': { color: 'primary.main' },
+                                            }
+                                        }}
+                                    >
+                                        {step.label}
+                                    </StepLabel>
+                                </Step>
+                            );
+                        })}
+                    </Stepper>
+                </Container>
+            </Paper>
 
             {/* Content area */}
-            <main style={{ flex: 1, padding: "40px", display: "flex", justifyContent: "center" }}>
-                <div style={{ width: "100%", maxWidth: "900px" }}>
+            <Box component="main" sx={{ flexGrow: 1, py: 6, display: 'flex', justifyContent: 'center' }}>
+                <Container maxWidth="lg">
                     <Outlet />
-                </div>
-            </main>
-        </div>
+                </Container>
+            </Box>
+        </Box>
     );
 }

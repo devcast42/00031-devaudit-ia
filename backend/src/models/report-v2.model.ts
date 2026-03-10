@@ -25,7 +25,7 @@ export interface ReportCoverPage {
 
 export interface ExecutiveSummary {
     global_maturity_level: string;
-    global_maturity_numeric: number;
+    global_compliance_percentage: number;
     maturity_interpretation: string;
     principal_risks: string[];
     organizational_impact: string;

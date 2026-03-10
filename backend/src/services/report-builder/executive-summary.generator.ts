@@ -73,9 +73,29 @@ export function generateExecutiveSummary(
         generalRecommendation = `Se recomienda mantener los controles actuales y abordar los ${totalFindings} hallazgos menores identificados. Implementar un proceso de auditoría periódica para asegurar la sostenibilidad del nivel alcanzado. Considerar la adopción de prácticas avanzadas de DevOps para continuar la mejora.`;
     }
 
+    // Calculate global compliance percentage (average of practice compliance)
+    const practiceResults = analysis.repository_results.flatMap(r => r.practice_results);
+    const practicesMap = new Map<string, { score: number, max: number }>();
+    for (const pr of practiceResults) {
+        if (!practicesMap.has(pr.practice)) practicesMap.set(pr.practice, { score: 0, max: 0 });
+        const acc = practicesMap.get(pr.practice)!;
+        acc.score += pr.score;
+        acc.max += pr.max_score;
+    }
+
+    let totalPercentageSum = 0;
+    let practiceCount = 0;
+    practicesMap.forEach((acc) => {
+        if (acc.max > 0) {
+            totalPercentageSum += (acc.score / acc.max);
+            practiceCount++;
+        }
+    });
+    const globalCompliance = practiceCount > 0 ? (totalPercentageSum / practiceCount) : 0;
+
     return {
         global_maturity_level: globalLevel,
-        global_maturity_numeric: maturityToNumber(globalLevel),
+        global_compliance_percentage: globalCompliance,
         maturity_interpretation: aiEnrichment?.maturity_interpretation || MATURITY_INTERPRETATIONS[globalLevel] || MATURITY_INTERPRETATIONS['Inicial'],
         principal_risks: aiEnrichment?.principal_risks || principalRisks,
         organizational_impact: aiEnrichment?.organizational_impact || organizationalImpact,
